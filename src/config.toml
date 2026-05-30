@@ -1,0 +1,66 @@
+[server]
+host = "0.0.0.0"
+# 监听端口
+port = 5000
+# Github文件大小限制（字节），默认2GB
+fileSize = 2147483648
+# HTTP/2 多路复用
+enableH2C = false
+enableFrontend = true
+# GitHub Personal Access Token (PAT)，用于提高 API 请求限流（60次/小时 → 5000次/小时）
+# 获取方式: https://github.com/settings/tokens
+# 留空则不使用 Token（Releases 列表等功能仍可用，但限流较低）
+githubToken = ""
+
+[rateLimit]
+# 每个IP每周期允许的请求数
+requestLimit = 500
+# 限流周期（小时）
+periodHours = 3.0
+# API 搜索请求每小时最大请求数，默认 1200（GitHub 认证限额 30次/分钟 的 2/3）
+apiSearchHourly = 1200
+# API Release 请求每小时最大请求数，默认 3333
+apiReleaseHourly = 3333
+# API Repo 请求每小时最大请求数，默认 3333
+apiRepoHourly = 3333
+# API 其他请求每小时最大请求数，默认 3333
+apiOtherHourly = 3333
+
+[access]
+# GitHub仓库白名单（支持通配符）
+# 只允许访问白名单中的仓库，为空时不限制
+whiteList = []
+
+# GitHub仓库黑名单（支持通配符）
+# 禁止访问黑名单中的仓库
+blackList = [
+    "baduser/malicious-repo",
+    "*/malicious-repo",
+    "baduser/*"
+]
+
+# 代理配置，支持有用户名/密码认证和无认证模式
+# 无认证: socks5://127.0.0.1:1080
+# 有认证: socks5://username:password@127.0.0.1:1080
+# 留空不使用代理
+proxy = "" 
+
+# [可选] 节点调度中心配置
+# 加入共享加速计划后，您的实例将自动获取其他参与者的节点列表
+# 并上报自身负载状态，由调度中心动态分配流量
+# 实例名称由系统自动生成（基于主机名或随机ID），无需手动配置
+[nodeRegistry]
+# 调度中心地址列表（支持多个调度中心，按优先级排序）
+# 留空则不加入共享计划
+urls = []
+
+# 对外公开的实例地址（可选，留空则自动使用 host:port）
+# publicUrl = "https://your-domain.com"
+
+# [可选] 用户认证
+# 通过路径 /user/pwd/ 实现认证，认证成功的用户不限速
+# 环境变量: AUTH_USERS="user1:pass1,user2:pass2"
+[authUsers]
+# 允许通过路径认证的用户列表，格式为 "用户名:密码"
+# 留空表示不启用认证功能
+users = []
