@@ -14,5 +14,5 @@ var (
 	// 项目名称
 	ProjectName = "Github-Proxy"
 	// 项目仓库地址
-	ProjectURL = "https://github.com/AlistairBlake/github-proxy"
+	ProjectURL = "https://github.com/josephxzy/github-proxy"
 )

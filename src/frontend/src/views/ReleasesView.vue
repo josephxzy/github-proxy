@@ -133,6 +133,10 @@ const props = defineProps({
   fromView: {
     type: String,
     default: 'home'
+  },
+  token: {
+    type: String,
+    default: ''
   }
 })
 
@@ -193,7 +197,11 @@ const fetchReleases = async (page = 1) => {
     const apiPath = `repos/${owner}/${repo}/releases?per_page=${perPage}&page=${page}`
     const proxyUrl = '/' + `https://api.github.com/${apiPath}`
 
-    const response = await fetch(proxyUrl, { cache: 'no-store' })
+    const fetchOptions = { cache: 'no-store' }
+    if (props.token) {
+      fetchOptions.headers = { 'X-GitHub-Token': props.token }
+    }
+    const response = await fetch(proxyUrl, fetchOptions)
 
     if (!response.ok) {
       if (response.status === 403) {
@@ -270,7 +278,10 @@ const goToPage = (page) => {
 
 const copyAssetUrl = (url) => {
   if (!props.selectedNode) return
-  const proxyUrl = props.getNodeUrl(props.selectedNode) + '/' + url
+  let proxyUrl = props.getNodeUrl(props.selectedNode) + '/' + url
+  if (props.token) {
+    proxyUrl += (proxyUrl.includes('?') ? '&' : '?') + 'token=' + props.token
+  }
   navigator.clipboard.writeText(proxyUrl).then(() => {
     copiedAssetUrl.value = url
     setTimeout(() => {
@@ -281,7 +292,10 @@ const copyAssetUrl = (url) => {
 
 const downloadAsset = (url) => {
   if (!props.selectedNode) return
-  const proxyUrl = props.getNodeUrl(props.selectedNode) + '/' + url
+  let proxyUrl = props.getNodeUrl(props.selectedNode) + '/' + url
+  if (props.token) {
+    proxyUrl += (proxyUrl.includes('?') ? '&' : '?') + 'token=' + props.token
+  }
   window.open(proxyUrl, '_blank')
 }
 

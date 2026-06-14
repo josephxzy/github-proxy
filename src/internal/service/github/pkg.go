@@ -68,12 +68,32 @@ func ApplyGitHubToken(req *http.Request, url string) {
 	download.ApplyGitHubToken(req, url)
 }
 
+func ExtractUserToken(r *http.Request) string {
+	return download.ExtractUserToken(r)
+}
+
+func ExtractUserTokenFromQuery(u string) string {
+	return download.ExtractUserTokenFromQuery(u)
+}
+
+func ApplyUserToken(req *http.Request, userToken string) {
+	download.ApplyUserToken(req, userToken)
+}
+
+func StripProxyQueryParams(rawURL string) string {
+	return download.StripProxyQueryParams(rawURL)
+}
+
 func PrefetchContentLength(ctx context.Context, url string, headers http.Header) int64 {
 	return download.PrefetchContentLength(ctx, url, headers)
 }
 
 func ProcessSmart(input io.Reader, isCompressed bool, host string) (io.Reader, int64, error) {
 	return download.ProcessSmart(input, isCompressed, host)
+}
+
+func IsShortGitHubPath(path string) bool {
+	return download.IsShortGitHubPath(path)
 }
 
 const MaxShellSize = download.MaxShellSize

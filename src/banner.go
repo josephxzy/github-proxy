@@ -19,9 +19,6 @@ func printBanner(cfg *config.AppConfig) {
 	fmt.Printf(" 构建: %s\n", BuildTime)
 	fmt.Println("--------------------------------------------")
 	fmt.Printf(" 监听: %s:%d\n", cfg.Server.Host, cfg.Server.Port)
-	if cfg.Server.EnableH2C {
-		fmt.Printf(" H2C: 已启用\n")
-	}
 	fmt.Printf(" 前端: %s\n", boolStr(cfg.Server.EnableFrontend, "已启用", "未启用"))
 	fmt.Printf(" 代理: %s\n", cfg.Access.Proxy)
 	fmt.Printf(" Token: %s\n", boolStr(cfg.Server.GitHubToken != "", "已配置", "未配置"))

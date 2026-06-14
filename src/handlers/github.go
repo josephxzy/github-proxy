@@ -53,6 +53,19 @@ func GitHubProxyHandler(c *gin.Context) {
 	// 步骤1：标准化路径，去除前导 "/"
 	rawPath := normalizePath(c.Request.URL.RequestURI())
 
+	// 提取用户提供的 GitHub Token（从请求头）
+	userToken := ghproxyservice.ExtractUserToken(c.Request)
+	if userToken != "" {
+		c.Set("userToken", userToken)
+	}
+	// 也从 URL 查询参数中提取（用于新窗口下载场景）
+	if qToken := ghproxyservice.ExtractUserTokenFromQuery(rawPath); qToken != "" && userToken == "" {
+		c.Set("userToken", qToken)
+	}
+
+	// 剥离代理专用查询参数（token、fast），不发给 GitHub
+	rawPath = ghproxyservice.StripProxyQueryParams(rawPath)
+
 	// 获取配置
 	cfg := config.GetConfig()
 	authenticated := false

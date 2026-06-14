@@ -65,6 +65,10 @@ func proxyAPIRequest(c *gin.Context, u string, redirectCount int) {
 	// 删除 Host 头，让 Go 自动设置正确的 Host
 	req.Header.Del("Host")
 
+	// 应用用户提供的 GitHub Token（优先级高于服务器 Token）
+	if userToken, ok := c.Get("userToken"); ok {
+		ghproxyservice.ApplyUserToken(req, userToken.(string))
+	}
 	// 如果配置了 GitHub Token，则添加到请求头中以提高速率限制
 	ghproxyservice.ApplyGitHubToken(req, u)
 

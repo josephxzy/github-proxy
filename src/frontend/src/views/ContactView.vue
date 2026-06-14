@@ -109,7 +109,7 @@
                 <div>
                   <h3 class="font-medium text-gray-900 dark:text-white mb-1">问题反馈</h3>
                   <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">如果您有任何使用上的问题或改进建议，欢迎提交 Issue。</p>
-                  <a href="https://github.com/AlistairBlake/github-proxy/issues" target="_blank" rel="noopener noreferrer"
+                  <a href="https://github.com/josephxzy/github-proxy/issues" target="_blank" rel="noopener noreferrer"
                     class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
                     Github Issues &rarr;
                   </a>
@@ -131,7 +131,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 
-const email = ref('AlistairBlake@example.com')
+const email = ref('19355371676@163.com')
 const serverInfo = ref({})
 const loading = ref(true)
 const error = ref(false)

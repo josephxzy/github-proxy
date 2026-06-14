@@ -182,7 +182,11 @@ import { ref, onMounted, computed } from 'vue'
 const props = defineProps({
   searchQuery: String,
   selectedNode: Object,
-  getNodeUrl: Function
+  getNodeUrl: Function,
+  token: {
+    type: String,
+    default: ''
+  }
 })
 
 const emit = defineEmits(['back', 'view-releases'])
@@ -309,7 +313,11 @@ const searchRepositories = async (page = 1) => {
     }
 
     const proxyUrl = '/' + `https://api.github.com/${apiPath}`
-    const response = await fetch(proxyUrl, { cache: 'no-store' })
+    const fetchOptions = { cache: 'no-store' }
+    if (props.token) {
+      fetchOptions.headers = { 'X-GitHub-Token': props.token }
+    }
+    const response = await fetch(proxyUrl, fetchOptions)
 
     if (!response.ok) {
       let errorMsg = `搜索失败: ${response.status} ${response.statusText}`
@@ -414,7 +422,10 @@ const downloadRepoZip = async (repo) => {
 
   // 使用快速模式下载 (fast=1)：跳过预检，提升响应速度
   const zipUrl = `https://github.com/${owner}/${repoName}/archive/refs/heads/${branch}.zip`
-  const proxyUrl = props.getNodeUrl(props.selectedNode) + '/' + zipUrl + '?fast=1'
+  let proxyUrl = props.getNodeUrl(props.selectedNode) + '/' + zipUrl + '?fast=1'
+  if (props.token) {
+    proxyUrl += '&token=' + props.token
+  }
   window.open(proxyUrl, '_blank')
 }
 

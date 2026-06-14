@@ -79,7 +79,11 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 	}
 	req.Header.Del("Host")
 
-	// 应用 GitHub Token（如果配置了）
+	// 应用用户提供的 GitHub Token（优先级高于服务器 Token）
+	if userToken, ok := c.Get("userToken"); ok {
+		ghproxyservice.ApplyUserToken(req, userToken.(string))
+	}
+	// 应用服务器 GitHub Token（如果配置了）
 	ghproxyservice.ApplyGitHubToken(req, u)
 
 	cfg := config.GetConfig()

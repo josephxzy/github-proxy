@@ -45,6 +45,9 @@ func (u *URLNormalizer) ensureHTTPS(rawPath string) string {
 	if strings.HasPrefix(rawPath, "http://") {
 		return "https://" + rawPath[7:]
 	}
+	if IsShortGitHubPath(rawPath) {
+		return "https://github.com/" + rawPath
+	}
 	return "https://" + rawPath
 }
 

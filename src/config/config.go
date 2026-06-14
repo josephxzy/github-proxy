@@ -26,19 +26,16 @@ type AppConfig struct {
 		Host           string `toml:"host"`           // 监听地址，默认 "0.0.0.0"
 		Port           int    `toml:"port"`           // 监听端口，默认 5000
 		FileSize       int64  `toml:"fileSize"`       // 单文件最大大小（字节），默认 2GB
-		EnableH2C      bool   `toml:"enableH2C"`      // 是否启用 H2C（HTTP/2 Cleartext），默认 false
 		EnableFrontend bool   `toml:"enableFrontend"` // 是否启用 Web 前端界面，默认 true
 		GitHubToken    string `toml:"githubToken"`    // GitHub Personal Access Token，用于提高 API 速率限制
 	} `toml:"server"`
 
 	// RateLimit 速率限制配置
 	RateLimit struct {
-		RequestLimit     int     `toml:"requestLimit"`     // 全局请求限制数量，默认 500
-		PeriodHours      float64 `toml:"periodHours"`      // 限制周期（小时），默认 3 小时
-		APISearchHourly  int     `toml:"apiSearchHourly"`  // 搜索 API 每小时请求限制，默认 1200
-		APIReleaseHourly int     `toml:"apiReleaseHourly"` // 发布版本 API 每小时请求限制，默认 3333
-		APIRepoHourly    int     `toml:"apiRepoHourly"`    // 仓库 API 每小时请求限制，默认 3333
-		APIOtherHourly   int     `toml:"apiOtherHourly"`   // 其他 API 每小时请求限制，默认 3333
+		APISearchHourly  int `toml:"apiSearchHourly"`  // 搜索 API 每小时请求限制，默认 1200
+		APIReleaseHourly int `toml:"apiReleaseHourly"` // 发布版本 API 每小时请求限制，默认 3333
+		APIRepoHourly    int `toml:"apiRepoHourly"`    // 仓库 API 每小时请求限制，默认 3333
+		APIOtherHourly   int `toml:"apiOtherHourly"`   // 其他 API 每小时请求限制，默认 3333
 	} `toml:"rateLimit"`
 
 	// Access 访问控制配置
@@ -80,27 +77,21 @@ func DefaultConfig() *AppConfig {
 			Host           string `toml:"host"`
 			Port           int    `toml:"port"`
 			FileSize       int64  `toml:"fileSize"`
-			EnableH2C      bool   `toml:"enableH2C"`
 			EnableFrontend bool   `toml:"enableFrontend"`
 			GitHubToken    string `toml:"githubToken"`
 		}{
 			Host:           "0.0.0.0",              // 监听所有网络接口
 			Port:           5000,                    // 默认端口
 			FileSize:       2 * 1024 * 1024 * 1024, // 2GB 文件大小限制
-			EnableH2C:      false,                   // 默认不启用 H2C
 			EnableFrontend: true,                    // 默认启用前端
 			GitHubToken:    "",                      // 无默认 Token
 		},
 		RateLimit: struct {
-			RequestLimit     int     `toml:"requestLimit"`
-			PeriodHours      float64 `toml:"periodHours"`
-			APISearchHourly  int     `toml:"apiSearchHourly"`
-			APIReleaseHourly int     `toml:"apiReleaseHourly"`
-			APIRepoHourly    int     `toml:"apiRepoHourly"`
-			APIOtherHourly   int     `toml:"apiOtherHourly"`
+			APISearchHourly  int `toml:"apiSearchHourly"`
+			APIReleaseHourly int `toml:"apiReleaseHourly"`
+			APIRepoHourly    int `toml:"apiRepoHourly"`
+			APIOtherHourly   int `toml:"apiOtherHourly"`
 		}{
-			RequestLimit:     500,   // 每3小时最多500次请求
-			PeriodHours:      3.0,   // 限制周期为3小时
 			APISearchHourly:  1200,  // 搜索API：每小时1200次
 			APIReleaseHourly: 3333,  // 发布API：每小时3333次
 			APIRepoHourly:    3333,  // 仓库API：每小时3333次
@@ -205,11 +196,8 @@ func normalizeURL(rawURL string) string {
 //	SERVER_HOST          - 服务器监听地址
 //	SERVER_PORT          - 服务器监听端口
 //	ENABLE_FRONTEND      - 是否启用前端 (true/false)
-//	ENABLE_H2C           - 是否启用 H2C (true/false)
 //	GITHUB_TOKEN         - GitHub Personal Access Token
 //	MAX_FILE_SIZE        - 最大文件大小（字节）
-//	REQUEST_LIMIT        - 全局请求限制数
-//	REQUEST_PERIOD_HOURS - 请求限制周期（小时）
 //	API_SEARCH_HOURLY    - 搜索 API 每小时限制
 //	API_RELEASE_HOURLY   - 发布 API 每小时限制
 //	API_REPO_HOURLY      - 仓库 API 每小时限制
@@ -233,9 +221,6 @@ func overrideFromEnv(cfg *AppConfig) {
 	if val := os.Getenv("ENABLE_FRONTEND"); val != "" {
 		cfg.Server.EnableFrontend = val == "true" || val == "1"
 	}
-	if val := os.Getenv("ENABLE_H2C"); val != "" {
-		cfg.Server.EnableH2C = val == "true" || val == "1"
-	}
 	if val := os.Getenv("GITHUB_TOKEN"); val != "" {
 		cfg.Server.GitHubToken = val
 	}
@@ -246,16 +231,6 @@ func overrideFromEnv(cfg *AppConfig) {
 	}
 
 	// 速率限制配置
-	if val := os.Getenv("REQUEST_LIMIT"); val != "" {
-		if limit, err := strconv.Atoi(val); err == nil && limit > 0 {
-			cfg.RateLimit.RequestLimit = limit
-		}
-	}
-	if val := os.Getenv("REQUEST_PERIOD_HOURS"); val != "" {
-		if hours, err := strconv.ParseFloat(val, 64); err == nil && hours > 0 {
-			cfg.RateLimit.PeriodHours = hours
-		}
-	}
 	if val := os.Getenv("API_SEARCH_HOURLY"); val != "" {
 		if v, err := strconv.Atoi(val); err == nil && v > 0 {
 			cfg.RateLimit.APISearchHourly = v
