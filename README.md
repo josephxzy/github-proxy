@@ -8,6 +8,8 @@
 
 - 🚀 全类型资源加速（Raw / Blob / Archive / Release / Gist）
 - 📦 Releases 浏览与搜索，一键下载 ZIP
+- 🔍 仓库搜索（支持排序、范围筛选），一键查看 README
+- 📖 README 在线预览，GitHub 链接自动替换为加速域名
 - 📊 下载进度条 + 断点续传（Range 探测协议）
 - 🔗 脚本自动替换（`.sh` / `.ps1` 内 GitHub 链接自动替换为代理地址）
 - 🔒 仓库黑白名单 + 用户认证
@@ -38,10 +40,10 @@ docker compose up -d --build
 
 ```bash
 # Linux / macOS
-./build.sh v1.0.0
+./build.sh v1.2.0
 
 # Windows
-.\build.ps1 -Version v1.0.0
+.\build.ps1 -Version v1.2.0
 ```
 
 **手动编译：**
@@ -155,9 +157,9 @@ git config --global url.https://github.com/.pushInsteadOf https://hub.xzyuse.sit
 
 ### 私有仓库网页访问
 
-页面搜索框下方有「私有仓库访问（设置 GitHub Token）」折叠面板，填入你的 GitHub Personal Access Token 后：
+点击页面搜索框下方的「私有仓库」开关，在弹窗中填入你的 GitHub Personal Access Token 后：
 
-- 搜索、Release 列表等 API 请求会携带 `X-GitHub-Token` 请求头
+- 搜索、Release 列表、README 预览等 API 请求会携带 `X-GitHub-Token` 请求头
 - 文件下载链接会自动拼接 `?token=` 查询参数
 - Token 保存在浏览器 localStorage 中，刷新不丢失
 
@@ -181,6 +183,12 @@ git clone https://proxyUser:proxyPass@hub.xzyuse.site/https://githubUser:ghp_xxx
 ### 脚本自动替换
 
 下载 `.sh` / `.ps1` 脚本时，内部所有 `github.com` / `githubusercontent.com` 链接会自动替换为当前代理地址。支持 gzip 压缩脚本，上限 10MB。
+
+### 仓库搜索与 README 预览
+
+在首页搜索框输入关键词或 `user/repo` 格式，可搜索 GitHub 仓库。搜索结果支持按星标数、Fork 数、最近更新排序，以及按名称、描述、README 范围筛选。
+
+每个仓库卡片提供 **下载 ZIP**、**Releases**、**README** 三个按钮。点击 **README** 按钮会弹窗展示该仓库的 README 文件，自动渲染 Markdown 内容，且 README 中所有 `github.com` / `raw.githubusercontent.com` / `user-images.githubusercontent.com` 链接会自动替换为当前加速站域名。
 
 ---
 
