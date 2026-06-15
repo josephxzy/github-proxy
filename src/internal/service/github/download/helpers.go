@@ -21,6 +21,7 @@ var githubExps = []*regexp.Regexp{
 	regexp.MustCompile(`^(?:https?://)?github\.com/([^/]+)/([^/]+)/(?:info|git-).*`),
 	regexp.MustCompile(`^(?:https?://)?raw\.github(?:usercontent|github)\.com/([^/]+)/([^/]+)/.+?/.+`),
 	regexp.MustCompile(`^(?:https?://)?gist\.(?:githubusercontent|github)\.com/([^/]+)/([^/]+).*`),
+	regexp.MustCompile(`^(?:https?://)?(.+)`),
 }
 
 func MatchURL(u string) []string {
