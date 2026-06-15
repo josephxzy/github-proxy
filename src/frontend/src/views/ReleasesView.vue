@@ -1,5 +1,5 @@
 <template>
-  <main class="flex-1 flex items-start justify-center py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-950 transition-colors duration-300">
+  <main class="flex-1 flex items-start justify-center py-8 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
     <div class="w-full max-w-[1000px] mx-auto">
       <div class="pt-6">
         <button @click="$emit('back')" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors mb-6">

@@ -1,5 +1,5 @@
 <template>
-  <main class="flex-1 flex items-start justify-center py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-950 transition-colors duration-300">
+  <main class="flex-1 flex items-start justify-center py-8 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
     <div class="w-full max-w-[1000px] mx-auto">
       <div class="pt-6">
         <button @click="$emit('back')" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors mb-6">
@@ -128,6 +128,12 @@
                 >
                   Releases
                 </button>
+                <button
+                  @click="showReadme(repo)"
+                  class="flex-1 sm:flex-none px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                >
+                  README
+                </button>
               </div>
             </div>
           </div>
@@ -173,10 +179,40 @@
       </div>
     </div>
   </main>
+
+  <Teleport to="body">
+    <div v-if="showReadmeModal" class="fixed inset-0 z-[10002] flex items-center justify-center bg-black/50" @click.self="closeReadmeModal">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[85vh] flex flex-col relative">
+        <button @click="closeReadmeModal" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <div class="px-6 pt-5 pb-3 border-b border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white pr-8">{{ readmeRepoName }}</h3>
+        </div>
+
+        <div v-if="readmeLoading" class="flex items-center justify-center py-16">
+          <svg class="animate-spin h-8 w-8 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+
+        <div v-else-if="readmeError" class="p-6 text-center">
+          <p class="text-red-500 dark:text-red-400">{{ readmeError }}</p>
+        </div>
+
+        <div v-else class="overflow-y-auto p-6 markdown-body text-gray-900 dark:text-gray-100" v-html="readmeContent"></div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { renderMarkdown } from '../markdown.js'
 
 const props = defineProps({
   searchQuery: String,
@@ -202,6 +238,12 @@ const sortOrder = ref('desc')
 
 // 搜索范围选项
 const searchScope = ref('all')
+
+const showReadmeModal = ref(false)
+const readmeLoading = ref(false)
+const readmeError = ref('')
+const readmeContent = ref('')
+const readmeRepoName = ref('')
 
 // 计算总页数
 const totalPages = computed(() => {
@@ -429,6 +471,77 @@ const downloadRepoZip = async (repo) => {
 
 const viewReleases = (repo) => {
   emit('view-releases', repo.html_url)
+}
+
+const parseRepoFromUrl = (url) => {
+  const parts = url.split('/').filter(p => p)
+  if (parts.length < 4) return null
+  return { owner: parts[2], repo: parts[3].replace('.git', '') }
+}
+
+const replaceGithubUrls = (html) => {
+  return html.replace(/(href|src)="(https?:\/\/(?:github\.com|raw\.githubusercontent\.com|user-images\.githubusercontent\.com)\/[^"]*)"/g,
+    (_, attr, url) => `${attr}="${props.proxyHost}/${url}"`)
+}
+
+const decodeBase64 = (base64) => {
+  const binary = atob(base64.replace(/\n/g, ''))
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return new TextDecoder().decode(bytes)
+}
+
+const showReadme = async (repo) => {
+  const info = parseRepoFromUrl(repo.html_url)
+  if (!info) return
+
+  readmeRepoName.value = repo.full_name
+  showReadmeModal.value = true
+  readmeLoading.value = true
+  readmeError.value = ''
+  readmeContent.value = ''
+
+  try {
+    const apiPath = `repos/${info.owner}/${info.repo}/readme`
+    const proxyUrl = '/' + `https://api.github.com/${apiPath}`
+    const fetchOptions = { cache: 'no-store' }
+    if (props.token) {
+      fetchOptions.headers = { 'X-GitHub-Token': props.token }
+    }
+    const response = await fetch(proxyUrl, fetchOptions)
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('该仓库没有 README 文件')
+      }
+      throw new Error(`获取 README 失败: ${response.status}`)
+    }
+
+    const data = await response.json()
+    let content = ''
+    if (data.content && data.encoding === 'base64') {
+      content = decodeBase64(data.content)
+    } else if (typeof data === 'string') {
+      content = data
+    } else {
+      throw new Error('无法解析 README 内容')
+    }
+
+    const rendered = renderMarkdown(content)
+    readmeContent.value = replaceGithubUrls(rendered)
+  } catch (error) {
+    readmeError.value = error.message || '获取 README 失败'
+  } finally {
+    readmeLoading.value = false
+  }
+}
+
+const closeReadmeModal = () => {
+  showReadmeModal.value = false
+  readmeContent.value = ''
+  readmeError.value = ''
 }
 
 const formatDate = (dateString) => {
