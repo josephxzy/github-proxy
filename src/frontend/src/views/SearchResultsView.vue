@@ -484,6 +484,22 @@ const replaceGithubUrls = (html) => {
     (_, attr, url) => `${attr}="${props.proxyHost}/${url}"`)
 }
 
+const replaceRelativeUrls = (html, baseUrl) => {
+  return html.replace(/(href|src)="(?!https?:\/\/|\/|#|mailto:|data:)([^"]*)"/g,
+    (_, attr, path) => {
+      let resolved = baseUrl
+      let currentPath = path
+      while (currentPath.startsWith('../')) {
+        currentPath = currentPath.substring(3)
+        resolved = resolved.substring(0, resolved.lastIndexOf('/', resolved.length - 2) + 1)
+      }
+      if (currentPath.startsWith('./')) {
+        currentPath = currentPath.substring(2)
+      }
+      return `${attr}="${resolved}${currentPath}"`
+    })
+}
+
 const decodeBase64 = (base64) => {
   const binary = atob(base64.replace(/\n/g, ''))
   const bytes = new Uint8Array(binary.length)
@@ -530,7 +546,14 @@ const showReadme = async (repo) => {
     }
 
     const rendered = renderMarkdown(content)
-    readmeContent.value = replaceGithubUrls(rendered)
+    let finalContent = rendered
+
+    if (data.download_url) {
+      const rawBaseUrl = data.download_url.substring(0, data.download_url.lastIndexOf('/') + 1)
+      finalContent = replaceRelativeUrls(finalContent, rawBaseUrl)
+    }
+
+    readmeContent.value = replaceGithubUrls(finalContent)
   } catch (error) {
     readmeError.value = error.message || '获取 README 失败'
   } finally {
