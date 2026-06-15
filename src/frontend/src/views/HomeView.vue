@@ -15,20 +15,6 @@
           @submit="handleAction"
         />
 
-        <!-- Token 切换按钮 -->
-        <div class="flex items-center gap-4 mb-6">
-          <button
-            type="button"
-            @click="toggleTokenMode"
-            class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all whitespace-nowrap h-[48px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-            :class="token ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-100'">
-            <div class="w-10 h-6 rounded-full transition-all relative" :class="showTokenModal ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'">
-              <div class="absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300" :class="showTokenModal ? 'translate-x-4' : 'translate-x-0.5'"></div>
-            </div>
-            <span class="text-sm font-medium">私有仓库访问</span>
-          </button>
-        </div>
-
         <!-- Token 弹窗 -->
         <Teleport to="body">
           <div v-if="showTokenModal" class="fixed inset-0 z-[10002] flex items-center justify-center bg-black/50" @click.self="closeTokenModal">
@@ -87,8 +73,9 @@
         :is-loading-nodes="isLoadingNodes"
         :is-shared-mode="isSharedMode"
         :is-releases-mode="isReleasesMode"
+        :token="token"
         @select-node="handleSelectNode"
-        @speed-test="speedTest"
+        @toggle-token="toggleTokenMode"
         @toggle-releases="toggleReleasesMode"
       />
 
@@ -136,15 +123,11 @@ const tokenDraft = ref(token.value)
 const tokenError = ref('')
 
 const toggleTokenMode = () => {
-  if (token.value) {
-    clearToken()
-    tokenDraft.value = ''
-    tokenError.value = ''
-  } else {
-    tokenDraft.value = token.value
-    tokenError.value = ''
-    showTokenModal.value = true
-  }
+  tokenDraft.value = token.value
+  tokenError.value = ''
+  validateTokenDraft()
+  tokenVisible.value = false
+  showTokenModal.value = true
 }
 
 const closeTokenModal = () => {
@@ -173,10 +156,7 @@ const handleTokenClear = () => {
 }
 
 const handleTokenConfirm = () => {
-  const val = tokenDraft.value.trim()
-  if (val) {
-    token.value = val
-  }
+  token.value = tokenDraft.value.trim()
   showTokenModal.value = false
 }
 
@@ -289,94 +269,6 @@ const getNodeUrl = (node) => {
     url = window.location.protocol + '//' + url
   }
   return url
-}
-
-const isValidNodeUrl = (url) => {
-  if (!url) return false
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = window.location.protocol + '//' + url
-  }
-  try {
-    const u = new URL(url)
-    const host = u.hostname
-    return host !== '127.0.0.1' && host !== 'localhost' && host !== '0.0.0.0'
-  } catch {
-    return false
-  }
-}
-
-const speedTest = async () => {
-  if (nodes.value.length === 0 || isLoadingNodes.value) return
-
-  const validNodes = nodes.value.filter(n => n.isLocal || isValidNodeUrl(n.url))
-
-  const testNode = (node) => {
-    return new Promise((resolve) => {
-      const startTime = Date.now()
-      const testUrl = getNodeUrl(node) + '/favicon.ico'
-
-      const xhr = new XMLHttpRequest()
-      xhr.open('GET', testUrl, true)
-      xhr.responseType = 'blob'
-      xhr.timeout = 8000
-
-      let headersReceived = false
-      xhr.onreadystatechange = () => {
-        if (xhr.readyState === 2 && !headersReceived) {
-          headersReceived = true
-          node.latency = Date.now() - startTime
-        }
-      }
-
-      xhr.onload = () => {
-        const totalTime = Date.now() - startTime
-        if (!node.latency) node.latency = totalTime
-
-        const blob = xhr.response
-        if (blob && blob.size > 0) {
-          const sizeInKB = blob.size / 1024
-          const timeInSeconds = totalTime / 1000
-          const speed = timeInSeconds > 0 ? sizeInKB / timeInSeconds : sizeInKB * 1000
-          node.speed = speed
-        } else {
-          node.speed = 0
-        }
-
-        resolve()
-      }
-
-      xhr.onerror = () => {
-        node.latency = '超时'
-        node.speed = null
-        resolve()
-      }
-
-      xhr.ontimeout = () => {
-        node.latency = '超时'
-        node.speed = null
-        resolve()
-      }
-
-      xhr.send()
-    })
-  }
-
-  const tests = validNodes.map(node => testNode(node))
-  await Promise.all(tests)
-
-  nodes.value.sort((a, b) => {
-    if (a.isLocal) return -1
-    if (b.isLocal) return 1
-
-    if (a.speed === null && b.speed !== null) return 1
-    if (b.speed !== null && a.speed === null) return -1
-    if (a.speed !== null && b.speed !== null) return b.speed - a.speed
-
-    if (typeof a.latency === 'number' && typeof b.latency === 'number') {
-      return a.latency - b.latency
-    }
-    return 0
-  })
 }
 
 // 页面导航方法
