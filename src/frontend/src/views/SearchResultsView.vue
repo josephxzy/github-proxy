@@ -480,11 +480,8 @@ const parseRepoFromUrl = (url) => {
 }
 
 const replaceGithubUrls = (html) => {
-  return html.replace(/(href|src)="(https?:\/\/[^"]*)"/g,
-    (_, attr, url) => {
-      if (url.startsWith(props.proxyHost)) return `${attr}="${url}"`
-      return `${attr}="${props.proxyHost}/${url}"`
-    })
+  return html.replace(/(href|src)="(https?:\/\/(?:github\.com|raw\.githubusercontent\.com|user-images\.githubusercontent\.com)\/[^"]*)"/g,
+    (_, attr, url) => `${attr}="${props.proxyHost}/${url}"`)
 }
 
 const replaceRelativeUrls = (html, baseUrl) => {
