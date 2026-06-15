@@ -75,7 +75,7 @@
             <div class="w-10 h-6 rounded-full transition-all relative" :class="token ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'">
               <div class="absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300" :class="token ? 'translate-x-4' : 'translate-x-0.5'"></div>
             </div>
-            <span class="text-sm font-medium">私有仓库访问</span>
+            <span class="text-sm font-medium">私有仓库</span>
           </button>
           <button
             type="button"
@@ -84,7 +84,7 @@
             <div class="w-10 h-6 rounded-full transition-all relative" :class="isReleasesMode ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'">
               <div class="absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300" :class="isReleasesMode ? 'translate-x-4' : 'translate-x-0.5'"></div>
             </div>
-            <span class="text-sm font-medium">获取Releases列表</span>
+            <span class="text-sm font-medium">版本列表</span>
           </button>
         </div>
       </div>
