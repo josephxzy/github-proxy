@@ -66,7 +66,7 @@
         </Teleport>
 
         <!-- 功能开关栏 -->
-        <div class="flex flex-col md:flex-row md:items-center gap-4 mb-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-center gap-4 mb-6">
           <button
             type="button"
             @click="toggleTokenMode"
