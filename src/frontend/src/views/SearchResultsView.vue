@@ -10,16 +10,16 @@
         </button>
 
         <!-- 搜索选项栏 -->
-        <div v-if="!loadingSearch && !searchError && searchResults.length > 0" class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 rounded-xl p-4 mb-6 space-y-3">
+        <div v-if="!loadingSearch && !searchError && searchResults.length > 0" class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 rounded-xl p-3 sm:p-4 mb-6 space-y-2 sm:space-y-3">
           <!-- 排序和范围选项 -->
-          <div class="flex flex-wrap items-center gap-3">
+          <div class="flex flex-wrap items-center gap-2 sm:gap-3">
             <!-- 排序选项 -->
-            <div class="flex items-center gap-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">排序:</label>
+            <div class="flex items-center gap-1.5 sm:gap-2">
+              <label class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">排序:</label>
               <select
                 v-model="sortBy"
                 @change="handleSortChange"
-                class="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="px-2 sm:px-3 py-1 sm:py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-xs sm:text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">最佳匹配</option>
                 <option value="stars">星标数</option>
@@ -29,12 +29,12 @@
             </div>
 
             <!-- 搜索范围 -->
-            <div class="flex items-center gap-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">范围:</label>
+            <div class="flex items-center gap-1.5 sm:gap-2">
+              <label class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">范围:</label>
               <select
                 v-model="searchScope"
                 @change="handleScopeChange"
-                class="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="px-2 sm:px-3 py-1 sm:py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-xs sm:text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">全部</option>
               <option value="name">名称</option>
@@ -44,7 +44,7 @@
             </div>
 
             <!-- 结果统计 -->
-            <div class="w-full sm:ml-auto text-sm text-gray-500 dark:text-gray-400">
+            <div class="w-full sm:ml-auto text-xs sm:text-sm text-gray-500 dark:text-gray-400 pt-1 sm:pt-0">
               共找到 <span class="font-semibold text-blue-600 dark:text-blue-400">{{ totalResults }}</span> 个仓库
               <span v-if="totalResults > 0" class="ml-2">(第 {{ currentPage }}/{{ totalPages }} 页)</span>
             </div>
@@ -115,22 +115,22 @@
                   <span>最后提交 {{ formatDate(repo.pushed_at) }}</span>
                 </div>
               </div>
-              <div class="flex flex-row sm:flex-col gap-2 sm:ml-4 w-full sm:w-auto">
+              <div class="flex flex-row sm:flex-col gap-1.5 sm:gap-2 sm:ml-4 w-full sm:w-auto">
                 <button
                   @click="downloadRepoZip(repo)"
-                  class="flex-1 sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                  class="flex-1 sm:flex-none px-2 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
                 >
                   下载 ZIP
                 </button>
                 <button
                   @click="viewReleases(repo)"
-                  class="flex-1 sm:flex-none px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                  class="flex-1 sm:flex-none px-2 sm:px-4 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
                 >
                   Releases
                 </button>
                 <button
                   @click="showReadme(repo)"
-                  class="flex-1 sm:flex-none px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                  class="flex-1 sm:flex-none px-2 sm:px-4 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
                 >
                   README
                 </button>
@@ -182,15 +182,15 @@
 
   <Teleport to="body">
     <div v-if="showReadmeModal" class="fixed inset-0 z-[10002] flex items-center justify-center bg-black/50" @click.self="closeReadmeModal">
-      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[85vh] flex flex-col relative">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl mx-2 sm:mx-4 max-h-[85vh] flex flex-col relative">
         <button @click="closeReadmeModal" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
-        <div class="px-6 pt-5 pb-3 border-b border-gray-200 dark:border-gray-700">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white pr-8">{{ readmeRepoName }}</h3>
+        <div class="px-4 sm:px-6 pt-5 pb-3 border-b border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white pr-8 truncate">{{ readmeRepoName }}</h3>
         </div>
 
         <div v-if="readmeLoading" class="flex items-center justify-center py-16">
@@ -204,7 +204,7 @@
           <p class="text-red-500 dark:text-red-400">{{ readmeError }}</p>
         </div>
 
-        <div v-else class="overflow-y-auto p-6 markdown-body text-gray-900 dark:text-gray-100" v-html="readmeContent"></div>
+        <div v-else class="overflow-y-auto overflow-x-hidden p-4 sm:p-6 markdown-body text-gray-900 dark:text-gray-100" v-html="readmeContent"></div>
       </div>
     </div>
   </Teleport>
