@@ -15,43 +15,69 @@
           @submit="handleAction"
         />
 
-        <!-- GitHub Token 输入区 -->
-        <div class="w-full mb-4">
+        <!-- Token 切换按钮 -->
+        <div class="flex items-center gap-4 mb-6">
           <button
-            @click="showTokenInput = !showTokenInput"
-            class="text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-1">
-            <svg class="w-4 h-4" :class="{ 'rotate-90': showTokenInput }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-            <span>私有仓库访问（设置 GitHub Token）</span>
+            type="button"
+            @click="toggleTokenMode"
+            class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all whitespace-nowrap h-[48px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+            :class="token ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-100'">
+            <div class="w-10 h-6 rounded-full transition-all relative" :class="showTokenModal ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'">
+              <div class="absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300" :class="showTokenModal ? 'translate-x-4' : 'translate-x-0.5'"></div>
+            </div>
+            <span class="text-sm font-medium">私有仓库访问</span>
           </button>
-          <div v-if="showTokenInput" class="mt-2 flex items-center gap-2">
-            <input
-              :type="tokenVisible ? 'text' : 'password'"
-              :value="token"
-              @input="token = $event.target.value"
-              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-              class="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors" />
-            <button
-              @click="tokenVisible = !tokenVisible"
-              class="px-2 py-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm"
-              :title="tokenVisible ? '隐藏' : '显示'">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path v-if="!tokenVisible" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path v-if="!tokenVisible" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-              </svg>
-            </button>
-            <button
-              v-if="token"
-              @click="clearToken()"
-              class="px-2 py-2 text-red-400 hover:text-red-600 text-sm"
-              title="清除 Token">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
         </div>
+
+        <!-- Token 弹窗 -->
+        <Teleport to="body">
+          <div v-if="showTokenModal" class="fixed inset-0 z-[10002] flex items-center justify-center bg-black/50" @click.self="closeTokenModal">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 relative">
+              <button @click="closeTokenModal" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">设置 GitHub Token</h3>
+
+              <div class="relative">
+                <input
+                  :type="tokenVisible ? 'text' : 'password'"
+                  v-model="tokenDraft"
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                  class="w-full px-3 py-2 pr-10 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 border rounded-lg focus:outline-none focus:ring-2 transition-colors"
+                  :class="tokenError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-700 focus:ring-blue-500'"
+                  @input="validateTokenDraft" />
+                <button
+                  @click="tokenVisible = !tokenVisible"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  :title="tokenVisible ? '隐藏' : '显示'">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path v-if="!tokenVisible" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path v-if="!tokenVisible" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  </svg>
+                </button>
+              </div>
+
+              <p v-if="tokenError" class="mt-1 text-xs text-red-500">{{ tokenError }}</p>
+
+              <div class="flex items-center gap-2 mt-4">
+                <button
+                  @click="handleTokenClear"
+                  class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-medium rounded-lg transition-colors">
+                  清空
+                </button>
+                <button
+                  @click="handleTokenConfirm"
+                  :disabled="!!tokenError"
+                  class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors">
+                  确认
+                </button>
+              </div>
+            </div>
+          </div>
+        </Teleport>
       </div>
 
       <!-- 节点选择器组件 -->
@@ -104,8 +130,55 @@ import HelpButton from '../components/common/HelpButton.vue'
 import { useToken } from '../composables/useToken'
 
 const { token, clearToken } = useToken()
-const showTokenInput = ref(false)
+const showTokenModal = ref(false)
 const tokenVisible = ref(false)
+const tokenDraft = ref(token.value)
+const tokenError = ref('')
+
+const toggleTokenMode = () => {
+  if (token.value) {
+    clearToken()
+    tokenDraft.value = ''
+    tokenError.value = ''
+  } else {
+    tokenDraft.value = token.value
+    tokenError.value = ''
+    showTokenModal.value = true
+  }
+}
+
+const closeTokenModal = () => {
+  showTokenModal.value = false
+  if (!tokenDraft.value.trim()) {
+    tokenError.value = ''
+  }
+}
+
+const validateTokenDraft = () => {
+  const val = tokenDraft.value.trim()
+  if (!val) {
+    tokenError.value = ''
+    return
+  }
+  if (!/^gh[poaurs]_[A-Za-z0-9_]+$/.test(val) && !/^github_pat_/.test(val)) {
+    tokenError.value = '格式不正确，GitHub Token 通常以 ghp_、gho_、github_pat_ 等开头'
+  } else {
+    tokenError.value = ''
+  }
+}
+
+const handleTokenClear = () => {
+  tokenDraft.value = ''
+  tokenError.value = ''
+}
+
+const handleTokenConfirm = () => {
+  const val = tokenDraft.value.trim()
+  if (val) {
+    token.value = val
+  }
+  showTokenModal.value = false
+}
 
 const githubUrl = ref('')
 const isLoadingNodes = ref(true)
