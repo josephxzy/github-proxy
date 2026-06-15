@@ -118,8 +118,7 @@
               <div class="flex flex-row sm:flex-col gap-2 sm:ml-4 w-full sm:w-auto">
                 <button
                   @click="downloadRepoZip(repo)"
-                  :disabled="!selectedNode"
-                  class="flex-1 sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                  class="flex-1 sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
                 >
                   下载 ZIP
                 </button>
@@ -181,8 +180,7 @@ import { ref, onMounted, computed } from 'vue'
 
 const props = defineProps({
   searchQuery: String,
-  selectedNode: Object,
-  getNodeUrl: Function,
+  proxyHost: String,
   token: {
     type: String,
     default: ''
@@ -289,7 +287,7 @@ const buildQueryString = (query) => {
 }
 
 const searchRepositories = async (page = 1) => {
-  if (!props.searchQuery.trim() || !props.selectedNode) return
+  if (!props.searchQuery.trim()) return
 
   loadingSearch.value = true
   searchError.value = ''
@@ -399,7 +397,7 @@ const nextPage = () => {
 }
 
 const downloadRepoZip = async (repo) => {
-  if (!props.selectedNode || !repo.html_url) return
+  if (!repo.html_url) return
 
   const parts = repo.html_url.split('/').filter(p => p)
   if (parts.length < 4) return
@@ -422,7 +420,7 @@ const downloadRepoZip = async (repo) => {
 
   // 使用快速模式下载 (fast=1)：跳过预检，提升响应速度
   const zipUrl = `https://github.com/${owner}/${repoName}/archive/refs/heads/${branch}.zip`
-  let proxyUrl = props.getNodeUrl(props.selectedNode) + '/' + zipUrl + '?fast=1'
+  let proxyUrl = props.proxyHost + '/' + zipUrl + '?fast=1'
   if (props.token) {
     proxyUrl += '&token=' + props.token
   }

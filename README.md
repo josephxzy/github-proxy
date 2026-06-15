@@ -10,10 +10,9 @@
 - 📦 Releases 浏览与搜索，一键下载 ZIP
 - 📊 下载进度条 + 断点续传（Range 探测协议）
 - 🔗 脚本自动替换（`.sh` / `.ps1` 内 GitHub 链接自动替换为代理地址）
-- 🌐 多节点支持与测速排序
 - 🔒 仓库黑白名单 + 用户认证
-- ⚡ API 分级限流 + IP 频率限制
-- 🤝 可选加入分布式公益加速网络
+- 🔑 私有仓库访问（前端设置 GitHub Token）
+- ⚡ API 分级限流
 
 ## 快速开始
 
@@ -83,10 +82,6 @@ whiteList = []              # 仓库白名单
 blackList = []              # 仓库黑名单
 proxy = ""                  # 上游代理地址
 
-[nodeRegistry]
-urls = []                   # 调度中心地址（留空不加入公益网络）
-publicUrl = ""              # 当前节点的公网地址（可选）
-
 [authUsers]
 users = []                  # 认证用户 "用户名:密码"，留空不启用
 ```
@@ -105,8 +100,6 @@ users = []                  # 认证用户 "用户名:密码"，留空不启用
 | `ACCESS_PROXY` | 上游代理地址 | 空 |
 | `REPO_WHITELIST` | 仓库白名单（逗号分隔） | 空 |
 | `REPO_BLACKLIST` | 仓库黑名单（逗号分隔） | 空 |
-| `NODE_REGISTRY_URLS` | 调度中心地址（逗号分隔） | 空 |
-| `NODE_PUBLIC_URL` | 当前节点公网地址 | 空 |
 | `AUTH_USERS` | 认证用户列表（逗号分隔） | 空 |
 
 ## 使用方式
@@ -234,25 +227,12 @@ hub.example.com {
 }
 ```
 
-## 公益加速网络（可选）
-
-多个实例通过统一的调度中心联合形成分布式加速网络。加入方法：
-
-```toml
-[nodeRegistry]
-urls = ["https://registry.example.com"]
-publicUrl = "https://hub.example.com"
-```
-
-将 `urls` 留空即可独立运行，不参与共享计划。退出只需清空 `urls` 并重启。
-
 ## API 端点
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | `/` | GET | 前端界面 |
 | `/ready` | GET | 服务就绪检查 |
-| `/api/nodes` | GET | 节点列表 |
 | `/{github_url}` | GET/POST | 代理请求（核心） |
 
 所有代理请求支持以下方式传递用户 GitHub Token：

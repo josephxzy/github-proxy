@@ -3,9 +3,7 @@
 // 支持功能包括：
 //   - GitHub API 代理（搜索、发布版本、仓库信息等）
 //   - GitHub 文件/资源下载代理
-//   - Docker 镜像拉取代理
 //   - 访问控制和速率限制
-//   - 多节点注册和负载均衡
 //   - Web 前端界面
 package main
 
@@ -77,14 +75,10 @@ func main() {
 		BuildTime:        BuildTime,                               // 构建时间
 		ServiceStartTime: serviceStartTime,                        // 服务启动时间
 		StaticFS:         &server.EmbedFSWrapper{FS: staticFiles}, // 静态文件系统
-		NodeRegistry:     app.NodeRegistry,                        // 节点注册中心
 	}
 
 	// 构建路由器，注册所有路由规则
 	router := server.BuildRouter(routerCfg)
-
-	// 初始化网络流量监控
-	server.InitNetworkMonitor()
 
 	// 步骤6：创建并启动 HTTP 服务器
 	srv := server.NewServer(cfg, router)

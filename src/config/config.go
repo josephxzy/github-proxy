@@ -45,21 +45,10 @@ type AppConfig struct {
 		Proxy     string   `toml:"proxy"`     // 上游代理地址，用于转发请求到 GitHub
 	} `toml:"access"`
 
-	// NodeRegistry 节点注册中心配置
-	NodeRegistry struct {
-		URLs      []string `toml:"urls"`      // 其他节点的 URL 列表，用于集群部署
-		PublicURL string   `toml:"publicUrl"` // 当前节点的公网访问地址
-	} `toml:"nodeRegistry"`
-
 	// AuthUsers 认证用户配置
 	AuthUsers struct {
 		Users []string `toml:"users"` // 允许访问的用户 Token 列表（Basic Auth）
 	} `toml:"authUsers"`
-}
-
-// GetRegistryURLs 返回节点注册中心的 URL 列表
-func (c *AppConfig) GetRegistryURLs() []string {
-	return c.NodeRegistry.URLs
 }
 
 var (
@@ -105,13 +94,6 @@ func DefaultConfig() *AppConfig {
 			WhiteList: []string{}, // 空白名单，不限制
 			BlackList: []string{}, // 空黑名单
 			Proxy:     "",        // 无上游代理
-		},
-		NodeRegistry: struct {
-			URLs      []string `toml:"urls"`
-			PublicURL string   `toml:"publicUrl"`
-		}{
-			URLs:      []string{}, // 无其他节点
-			PublicURL: "",        // 无公网地址
 		},
 		AuthUsers: struct {
 			Users []string `toml:"users"`
@@ -175,20 +157,6 @@ func LoadConfig() error {
 	return nil
 }
 
-// normalizeURL 标准化 URL 格式
-// 去除已有的协议头（http:// 或 https://），然后统一添加 https://
-// 用于确保所有节点 URL 使用一致的协议
-func normalizeURL(rawURL string) string {
-	if rawURL == "" {
-		return ""
-	}
-	// 去除可能存在的协议头
-	rawURL = strings.TrimPrefix(rawURL, "https://")
-	rawURL = strings.TrimPrefix(rawURL, "http://")
-	// 默认使用 https://
-	return "https://" + rawURL
-}
-
 // overrideFromEnv 从环境变量中读取配置并覆盖配置文件中的值
 // 所有环境变量都采用大写命名，使用下划线分隔
 // 支持的环境变量列表：
@@ -205,8 +173,6 @@ func normalizeURL(rawURL string) string {
 //	ACCESS_PROXY         - 上游代理地址
 //	REPO_WHITELIST       - 仓库白名单（逗号分隔）
 //	REPO_BLACKLIST       - 仓库黑名单（逗号分隔）
-//	NODE_REGISTRY_URLS   - 节点注册 URL 列表（逗号分隔）
-//	NODE_PUBLIC_URL      - 当前节点公网地址
 //	AUTH_USERS           - 认证用户列表（逗号分隔）
 func overrideFromEnv(cfg *AppConfig) {
 	// 服务器配置
@@ -261,16 +227,6 @@ func overrideFromEnv(cfg *AppConfig) {
 	}
 	if val := os.Getenv("REPO_BLACKLIST"); val != "" {
 		cfg.Access.BlackList = append(cfg.Access.BlackList, strings.Split(val, ",")...)
-	}
-
-	// 节点注册配置
-	if val := os.Getenv("NODE_REGISTRY_URLS"); val != "" {
-		for _, u := range strings.Split(val, ",") {
-			cfg.NodeRegistry.URLs = append(cfg.NodeRegistry.URLs, normalizeURL(strings.TrimSpace(u)))
-		}
-	}
-	if val := os.Getenv("NODE_PUBLIC_URL"); val != "" {
-		cfg.NodeRegistry.PublicURL = normalizeURL(strings.TrimSpace(val))
 	}
 
 	// 认证用户配置

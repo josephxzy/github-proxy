@@ -5,7 +5,6 @@ import (
 
 	"github-proxy/config"
 	ghproxygithub "github-proxy/internal/service/github"
-	proxynodereg "github-proxy/internal/service/nodereg"
 )
 
 // Application 应用程序核心类
@@ -20,11 +19,6 @@ import (
 //	    ├─ DownloadService: 文件下载服务
 //	    └─ APIService: API 代理服务
 //
-//	节点调度领域 (nodereg package)：
-//	  - NodeRegistryService: 节点注册服务 (Facade)
-//	    ├─ NodeManager: 本地节点管理
-//	    └─ RegistryClient: 调度中心客户端
-//
 // 所有 Handler 和 Server 通过 Application 获取所需的服务实例。
 type Application struct {
 	Config        *config.AppConfig
@@ -32,7 +26,6 @@ type Application struct {
 	AccessCtrl    *AccessControlService
 	URLNormalizer *ghproxygithub.URLNormalizer
 	Proxy         *ProxyService
-	NodeRegistry  *proxynodereg.NodeRegistryService
 }
 
 // NewApplication 创建应用程序实例并初始化所有服务。
@@ -46,7 +39,6 @@ func NewApplication(cfg *config.AppConfig) *Application {
 		),
 		URLNormalizer: ghproxygithub.NewURLNormalizer(),
 		Proxy:         NewProxyService(cfg),
-		NodeRegistry:  proxynodereg.NewNodeRegistryService(cfg),
 	}
 
 	return app
@@ -62,15 +54,11 @@ func (app *Application) Start(ctx context.Context) error {
 		cfg.RateLimit.APIOtherHourly,
 	)
 
-	if err := app.NodeRegistry.Start(ctx); err != nil {
-		return err
-	}
 	return nil
 }
 
 // Stop 优雅停止所有服务。
 func (app *Application) Stop() {
-	app.NodeRegistry.Stop()
 }
 
 // GetDownloadService 获取文件下载服务。

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github-proxy/config"
 )
@@ -22,7 +21,6 @@ func printBanner(cfg *config.AppConfig) {
 	fmt.Printf(" 前端: %s\n", boolStr(cfg.Server.EnableFrontend, "已启用", "未启用"))
 	fmt.Printf(" 代理: %s\n", cfg.Access.Proxy)
 	fmt.Printf(" Token: %s\n", boolStr(cfg.Server.GitHubToken != "", "已配置", "未配置"))
-	fmt.Printf(" 节点: %s\n", nodeRegistryStr(cfg.NodeRegistry.URLs))
 
 	// 显示认证用户数量
 	auth := "未启用"
@@ -41,13 +39,4 @@ func boolStr(cond bool, yes, no string) string {
 		return yes
 	}
 	return no
-}
-
-// nodeRegistryStr 格式化显示节点注册列表
-// 如果没有节点则返回"未连接"，否则用逗号分隔显示所有节点 URL
-func nodeRegistryStr(urls []string) string {
-	if len(urls) == 0 {
-		return "未连接"
-	}
-	return strings.Join(urls, ", ")
 }

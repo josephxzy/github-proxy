@@ -128,8 +128,7 @@ import { renderMarkdown } from '../markdown.js'
 
 const props = defineProps({
   repoUrl: String,
-  selectedNode: Object,
-  getNodeUrl: Function,
+  proxyHost: String,
   fromView: {
     type: String,
     default: 'home'
@@ -169,7 +168,7 @@ watch(() => props.repoUrl, (newUrl, oldUrl) => {
 })
 
 const fetchReleases = async (page = 1) => {
-  if (!props.repoUrl || !props.selectedNode) return
+  if (!props.repoUrl) return
 
   loadingReleases.value = true
   releasesError.value = ''
@@ -277,8 +276,7 @@ const goToPage = (page) => {
 }
 
 const copyAssetUrl = (url) => {
-  if (!props.selectedNode) return
-  let proxyUrl = props.getNodeUrl(props.selectedNode) + '/' + url
+  let proxyUrl = props.proxyHost + '/' + url
   if (props.token) {
     proxyUrl += (proxyUrl.includes('?') ? '&' : '?') + 'token=' + props.token
   }
@@ -291,8 +289,7 @@ const copyAssetUrl = (url) => {
 }
 
 const downloadAsset = (url) => {
-  if (!props.selectedNode) return
-  let proxyUrl = props.getNodeUrl(props.selectedNode) + '/' + url
+  let proxyUrl = props.proxyHost + '/' + url
   if (props.token) {
     proxyUrl += (proxyUrl.includes('?') ? '&' : '?') + 'token=' + props.token
   }

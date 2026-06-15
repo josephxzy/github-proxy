@@ -64,20 +64,30 @@
             </div>
           </div>
         </Teleport>
-      </div>
 
-      <!-- 节点选择器组件 -->
-      <NodeSelector
-        :nodes="nodes"
-        :selected-node="selectedNode"
-        :is-loading-nodes="isLoadingNodes"
-        :is-shared-mode="isSharedMode"
-        :is-releases-mode="isReleasesMode"
-        :token="token"
-        @select-node="handleSelectNode"
-        @toggle-token="toggleTokenMode"
-        @toggle-releases="toggleReleasesMode"
-      />
+        <!-- 功能开关栏 -->
+        <div class="flex flex-col md:flex-row md:items-center gap-4 mb-6">
+          <button
+            type="button"
+            @click="toggleTokenMode"
+            class="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all whitespace-nowrap h-[48px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+            :class="token ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-100'">
+            <div class="w-10 h-6 rounded-full transition-all relative" :class="token ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'">
+              <div class="absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300" :class="token ? 'translate-x-4' : 'translate-x-0.5'"></div>
+            </div>
+            <span class="text-sm font-medium">私有仓库访问</span>
+          </button>
+          <button
+            type="button"
+            @click="toggleReleasesMode"
+            class="w-full md:w-auto flex items-center justify-center md:justify-start gap-2 px-4 py-3 rounded-lg border transition-all whitespace-nowrap h-[48px] bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+            <div class="w-10 h-6 rounded-full transition-all relative" :class="isReleasesMode ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'">
+              <div class="absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300" :class="isReleasesMode ? 'translate-x-4' : 'translate-x-0.5'"></div>
+            </div>
+            <span class="text-sm font-medium">获取Releases列表</span>
+          </button>
+        </div>
+      </div>
 
       <!-- 帮助按钮组件 -->
       <HelpButton v-if="currentView === 'home'" />
@@ -87,8 +97,7 @@
     <ReleasesView
       v-else-if="currentView === 'releases'"
       :repoUrl="currentRepoUrl"
-      :selectedNode="selectedNode"
-      :getNodeUrl="getNodeUrl"
+      :proxyHost="proxyHost"
       :fromView="previousView"
       :token="token"
       @back="goBack"
@@ -98,8 +107,7 @@
     <SearchResultsView
       v-else-if="currentView === 'search'"
       :searchQuery="searchQuery"
-      :selectedNode="selectedNode"
-      :getNodeUrl="getNodeUrl"
+      :proxyHost="proxyHost"
       :token="token"
       @back="goHome"
       @view-releases="handleViewReleasesFromSearch"
@@ -108,11 +116,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed } from 'vue'
 import ReleasesView from './ReleasesView.vue'
 import SearchResultsView from './SearchResultsView.vue'
 import SearchBox from '../components/search/SearchBox.vue'
-import NodeSelector from '../components/search/NodeSelector.vue'
 import HelpButton from '../components/common/HelpButton.vue'
 import { useToken } from '../composables/useToken'
 
@@ -121,6 +128,8 @@ const showTokenModal = ref(false)
 const tokenVisible = ref(false)
 const tokenDraft = ref(token.value)
 const tokenError = ref('')
+
+const proxyHost = window.location.origin
 
 const toggleTokenMode = () => {
   tokenDraft.value = token.value
@@ -161,11 +170,7 @@ const handleTokenConfirm = () => {
 }
 
 const githubUrl = ref('')
-const isLoadingNodes = ref(true)
-const selectedNode = ref(null)
 const isReleasesMode = ref(false)
-const nodes = ref([])
-const isSharedMode = ref(false)
 
 // 页面路由状态
 const currentView = ref('home')
@@ -173,8 +178,6 @@ const previousView = ref('home')
 const currentRepoUrl = ref('')
 const searchQuery = ref('')
 const navigationHistory = ref([])
-
-let nodePollingTimer = null
 
 // 获取输入类型（用于 handleAction 判断）
 const inputType = computed(() => {
@@ -192,84 +195,6 @@ const inputType = computed(() => {
 
   return 'search'
 })
-
-const loadNodes = async () => {
-  isLoadingNodes.value = true
-  try {
-    const response = await fetch('/api/nodes')
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-    const data = await response.json()
-    updateNodes(data)
-  } catch (error) {
-    console.error('加载节点失败:', error)
-  } finally {
-    isLoadingNodes.value = false
-  }
-}
-
-const updateNodes = (data) => {
-  isSharedMode.value = data.shared
-  const oldSelected = selectedNode.value
-  nodes.value = (data.nodes || []).map(node => ({
-    id: node.id,
-    name: node.name,
-    url: node.url,
-    isLocal: node.isLocal,
-    score: node.score,
-    isBusy: node.isBusy,
-    isNew: node.isNew,
-    latency: null,
-    speed: null
-  }))
-  if (oldSelected) {
-    const updated = nodes.value.find(n => n.url === oldSelected.url)
-    if (updated) {
-      updated.latency = oldSelected.latency
-      updated.speed = oldSelected.speed
-      selectedNode.value = updated
-    }
-  }
-  if (!selectedNode.value) {
-    const localNode = nodes.value.find(n => n.isLocal)
-    if (localNode) {
-      selectedNode.value = localNode
-    } else if (nodes.value.length > 0) {
-      selectedNode.value = nodes.value[0]
-    }
-  }
-}
-
-const startNodePolling = () => {
-  if (nodePollingTimer) clearInterval(nodePollingTimer)
-  loadNodes()
-  nodePollingTimer = setInterval(loadNodes, 30000)
-}
-
-onMounted(() => {
-  loadNodes()
-  startNodePolling()
-})
-
-onUnmounted(() => {
-  if (nodePollingTimer) clearInterval(nodePollingTimer)
-})
-
-watch(isReleasesMode, () => {
-})
-
-const handleSelectNode = (node) => {
-  selectedNode.value = node
-}
-
-const getNodeUrl = (node) => {
-  let url = node.url
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = window.location.protocol + '//' + url
-  }
-  return url
-}
 
 // 页面导航方法
 const navigateTo = (view, options = {}) => {
@@ -343,8 +268,7 @@ const handleAction = () => {
 }
 
 const downloadFile = () => {
-  if (!selectedNode.value) return
-  let baseUrl = getNodeUrl(selectedNode.value) + '/' + githubUrl.value.trim()
+  let baseUrl = proxyHost + '/' + githubUrl.value.trim()
   if (token.value) {
     baseUrl += (baseUrl.includes('?') ? '&' : '?') + 'token=' + token.value
   }
@@ -352,7 +276,7 @@ const downloadFile = () => {
 }
 
 const downloadRepoZip = async () => {
-  if (!selectedNode.value || !githubUrl.value) return
+  if (!githubUrl.value) return
 
   const repoUrl = githubUrl.value.replace('.git', '').trim()
   const parts = repoUrl.split('/').filter(p => p)
@@ -376,7 +300,7 @@ const downloadRepoZip = async () => {
   }
 
   const zipUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/${branch}.zip`
-  let proxyUrl = getNodeUrl(selectedNode.value) + '/' + zipUrl + '?fast=1'
+  let proxyUrl = proxyHost + '/' + zipUrl + '?fast=1'
   if (token.value) {
     proxyUrl += '&token=' + token.value
   }
@@ -390,10 +314,4 @@ const handleViewReleasesFromSearch = (repoUrl) => {
 const toggleReleasesMode = () => {
   isReleasesMode.value = !isReleasesMode.value
 }
-
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.relative.z-\\[9999\\]')) {
-    // NodeSelector 内部处理自己的关闭逻辑
-  }
-})
 </script>
