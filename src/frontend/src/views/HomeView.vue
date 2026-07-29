@@ -1,100 +1,134 @@
 <template>
   <main class="flex-1 py-8 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
     <!-- 主页：搜索入口 -->
-    <div v-if="currentView === 'home'" class="w-full max-w-[1000px] mx-auto">
-      <div class="pt-10">
-        <div class="text-center w-full mb-12">
-          <h1 class="font-bold mb-4 text-6xl text-gray-900 dark:text-white transition-colors duration-300">Github <span class="text-blue-600">Proxy</span></h1>
-          <p class="text-gray-600 dark:text-gray-400 text-base">支持 API、Git Clone、Releases、Archive、Gist、Raw 等资源加速下载，提升 GitHub 文件下载体验。</p>
-        </div>
+    <div v-if="currentView === 'home'" class="w-full max-w-[1000px] mx-auto relative">
+      <!-- 装饰背景 -->
+      <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        <div class="absolute inset-x-0 top-0 h-[440px] bg-dot-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black,transparent)]"></div>
+        <div class="absolute -top-16 left-1/2 -translate-x-1/2 w-[560px] h-[340px] bg-gradient-to-r from-blue-400/20 via-indigo-400/20 to-violet-400/20 dark:from-blue-500/10 dark:via-indigo-500/10 dark:to-violet-500/10 rounded-full blur-3xl animate-blob"></div>
+      </div>
 
-        <!-- 搜索框组件 -->
-        <SearchBox
-          v-model="githubUrl"
-          :is-releases-mode="isReleasesMode"
-          @submit="handleAction"
-        />
-
-        <!-- Token 弹窗 -->
-        <Teleport to="body">
-          <div v-if="showTokenModal" class="fixed inset-0 z-[10002] flex items-center justify-center bg-black/50" @click.self="closeTokenModal">
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 relative">
-              <button @click="closeTokenModal" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">设置 GitHub Token</h3>
-
-              <div class="relative">
-                <input
-                  :type="tokenVisible ? 'text' : 'password'"
-                  v-model="tokenDraft"
-                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                  class="w-full px-3 py-2 pr-10 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 border rounded-lg focus:outline-none focus:ring-2 transition-colors"
-                  :class="tokenError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-700 focus:ring-blue-500'"
-                  @input="validateTokenDraft" />
-                <button
-                  @click="tokenVisible = !tokenVisible"
-                  class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  :title="tokenVisible ? '隐藏' : '显示'">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path v-if="!tokenVisible" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path v-if="!tokenVisible" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                  </svg>
-                </button>
-              </div>
-
-              <p v-if="tokenError" class="mt-1 text-xs text-red-500">{{ tokenError }}</p>
-
-              <div class="flex items-center gap-2 mt-4">
-                <button
-                  @click="handleTokenClear"
-                  class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-medium rounded-lg transition-colors">
-                  清空
-                </button>
-                <button
-                  @click="handleTokenConfirm"
-                  :disabled="!!tokenError"
-                  class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors">
-                  确认
-                </button>
-              </div>
+      <div class="relative">
+        <div class="pt-10">
+          <div class="text-center w-full mb-10">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 mb-6 rounded-full bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-700 shadow-sm text-xs font-medium text-gray-600 dark:text-gray-300 animate-fade-in-up">
+              <span class="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 animate-pulse"></span>
+              轻量级 GitHub 资源加速反向代理
+            </div>
+            <h1 class="font-extrabold tracking-tight mb-4 text-5xl sm:text-6xl text-gray-900 dark:text-white transition-colors duration-300 animate-fade-in-up animation-delay-100">
+              Github <span class="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 dark:from-blue-400 dark:via-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">Proxy</span>
+            </h1>
+            <p class="text-gray-600 dark:text-gray-400 text-base sm:text-lg max-w-2xl mx-auto animate-fade-in-up animation-delay-200">支持 API、Git Clone、Releases、Archive、Gist、Raw 等资源加速下载，提升 GitHub 文件下载体验。</p>
+            <div class="flex flex-wrap items-center justify-center gap-2 mt-6 animate-fade-in-up animation-delay-300">
+              <span class="px-3 py-1 text-xs font-medium rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 ring-1 ring-blue-200/70 dark:ring-blue-500/20">Git Clone</span>
+              <span class="px-3 py-1 text-xs font-medium rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-200/70 dark:ring-indigo-500/20">Releases</span>
+              <span class="px-3 py-1 text-xs font-medium rounded-full bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 ring-1 ring-violet-200/70 dark:ring-violet-500/20">Archive</span>
+              <span class="px-3 py-1 text-xs font-medium rounded-full bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-1 ring-sky-200/70 dark:ring-sky-500/20">Raw</span>
+              <span class="px-3 py-1 text-xs font-medium rounded-full bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 ring-1 ring-cyan-200/70 dark:ring-cyan-500/20">Gist</span>
             </div>
           </div>
-        </Teleport>
 
-        <!-- 功能开关栏 -->
-        <div class="flex flex-col md:flex-row md:items-center md:justify-center gap-4 mb-6">
-          <button
-            type="button"
-            @click="toggleTokenMode"
-            class="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all whitespace-nowrap h-[48px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-            :class="token ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-100'">
-            <div class="w-10 h-6 rounded-full transition-all relative" :class="token ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'">
-              <div class="absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300" :class="token ? 'translate-x-4' : 'translate-x-0.5'"></div>
+          <!-- 搜索框组件 -->
+          <div class="animate-fade-in-up animation-delay-300">
+            <SearchBox
+              v-model="githubUrl"
+              :is-releases-mode="isReleasesMode"
+              @submit="handleAction"
+            />
+          </div>
+
+          <!-- Token 弹窗 -->
+          <Teleport to="body">
+            <div v-if="showTokenModal" class="fixed inset-0 z-[10002] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" @click.self="closeTokenModal">
+              <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl ring-1 ring-gray-900/5 dark:ring-white/10 w-full max-w-md mx-4 p-6 relative animate-scale-in">
+                <button @click="closeTokenModal" class="absolute top-3 right-3 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 ring-1 ring-blue-100 dark:ring-blue-500/20 flex items-center justify-center flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600 dark:text-blue-400">
+                      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+                    </svg>
+                  </div>
+                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">设置 GitHub Token</h3>
+                </div>
+
+                <div class="relative">
+                  <input
+                    :type="tokenVisible ? 'text' : 'password'"
+                    v-model="tokenDraft"
+                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                    class="w-full px-3 py-2.5 pr-10 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-xl focus:outline-none focus:ring-2 transition-all"
+                    :class="tokenError ? 'ring-1 ring-red-500 focus:ring-red-500' : 'ring-1 ring-gray-200 dark:ring-gray-700 focus:ring-blue-500'"
+                    @input="validateTokenDraft" />
+                  <button
+                    @click="tokenVisible = !tokenVisible"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    :title="tokenVisible ? '隐藏' : '显示'">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path v-if="!tokenVisible" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path v-if="!tokenVisible" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  </button>
+                </div>
+
+                <p v-if="tokenError" class="mt-2 text-xs text-red-500">{{ tokenError }}</p>
+
+                <div class="flex items-center gap-2 mt-5">
+                  <button
+                    @click="handleTokenClear"
+                    class="flex-1 px-4 py-2.5 ring-1 ring-gray-200 dark:ring-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium rounded-xl transition-colors">
+                    清空
+                  </button>
+                  <button
+                    @click="handleTokenConfirm"
+                    :disabled="!!tokenError"
+                    class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-gray-300 disabled:to-gray-300 dark:disabled:from-gray-700 dark:disabled:to-gray-700 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl shadow-md shadow-blue-600/20 disabled:shadow-none transition-all">
+                    确认
+                  </button>
+                </div>
+              </div>
             </div>
-            <span class="text-sm font-medium">私有仓库</span>
-          </button>
-          <button
-            type="button"
-            @click="toggleReleasesMode"
-            class="w-full md:w-auto flex items-center justify-center md:justify-start gap-2 px-4 py-3 rounded-lg border transition-all whitespace-nowrap h-[48px] bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-            <div class="w-10 h-6 rounded-full transition-all relative" :class="isReleasesMode ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'">
-              <div class="absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300" :class="isReleasesMode ? 'translate-x-4' : 'translate-x-0.5'"></div>
-            </div>
-            <span class="text-sm font-medium">版本列表</span>
-          </button>
+          </Teleport>
+
+          <!-- 功能开关栏 -->
+          <div class="flex flex-col md:flex-row md:items-center md:justify-center gap-3 mb-6 animate-fade-in-up animation-delay-300">
+            <button
+              type="button"
+              @click="toggleTokenMode"
+              class="w-full md:w-auto flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl transition-all whitespace-nowrap h-[48px] bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-700 shadow-sm hover:shadow-md hover:ring-gray-300 dark:hover:ring-gray-600 text-gray-700 dark:text-gray-100">
+              <div class="w-10 h-6 rounded-full transition-all relative shadow-inner" :class="token ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gray-200 dark:bg-gray-700'">
+                <div class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300" :class="token ? 'translate-x-4' : 'translate-x-0.5'"></div>
+              </div>
+              <span class="text-sm font-medium">私有仓库</span>
+            </button>
+            <button
+              type="button"
+              @click="toggleReleasesMode"
+              class="w-full md:w-auto flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl transition-all whitespace-nowrap h-[48px] bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-700 shadow-sm hover:shadow-md hover:ring-gray-300 dark:hover:ring-gray-600 text-gray-700 dark:text-gray-100">
+              <div class="w-10 h-6 rounded-full transition-all relative shadow-inner" :class="isReleasesMode ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gray-200 dark:bg-gray-700'">
+                <div class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300" :class="isReleasesMode ? 'translate-x-4' : 'translate-x-0.5'"></div>
+              </div>
+              <span class="text-sm font-medium">版本列表</span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div v-if="tokenInvalid" class="max-w-2xl mx-auto mb-6 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg text-sm text-yellow-800 dark:text-yellow-200">
-        你提供的 GitHub Token 似乎已失效，已自动切换为服务器限流模式。请重新设置有效的 Token。
-      </div>
+        <div v-if="tokenInvalid" class="max-w-2xl mx-auto mb-6 p-3.5 bg-yellow-50 dark:bg-yellow-900/20 ring-1 ring-yellow-200 dark:ring-yellow-700/50 rounded-xl text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2.5 animate-fade-in">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 text-yellow-500">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+            <path d="M12 9v4"></path>
+            <path d="M12 17h.01"></path>
+          </svg>
+          你提供的 GitHub Token 似乎已失效，已自动切换为服务器限流模式。请重新设置有效的 Token。
+        </div>
 
-      <!-- 帮助按钮组件 -->
-      <HelpButton v-if="currentView === 'home'" />
+        <!-- 帮助按钮组件 -->
+        <HelpButton v-if="currentView === 'home'" />
+      </div>
     </div>
 
     <!-- Releases 列表页面 -->

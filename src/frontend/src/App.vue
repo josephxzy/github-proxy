@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col min-h-screen">
+  <div class="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
     <Header :isDark="isDark" :isContact="showContact" @toggleDark="toggleDark" @goContact="showContact = true" @goHome="showContact = false" />
     <HomeView v-if="!showContact" />
     <ContactView v-else />

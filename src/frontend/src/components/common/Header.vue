@@ -1,12 +1,12 @@
 <template>
-  <header class="bg-white dark:bg-gray-900 transition-colors duration-300">
+  <header class="sticky top-0 z-50 bg-white/75 dark:bg-gray-900/75 backdrop-blur-md border-b border-gray-200/70 dark:border-gray-800 transition-colors duration-300">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-16">
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center space-x-3">
           <div
-            class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors duration-300 bg-white dark:bg-gray-800 shadow-sm">
+            class="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 bg-gradient-to-br from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 shadow-md shadow-gray-900/15 dark:shadow-black/30">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-              class="w-8 h-8 transition-colors duration-300 fill-gray-900 dark:fill-white" aria-hidden="true">
+              class="w-6 h-6 transition-colors duration-300 fill-white dark:fill-gray-900" aria-hidden="true">
               <path
                 d="M7.75 11c-.69 0-1.25.56-1.25 1.25v1.5a1.25 1.25 0 1 0 2.5 0v-1.5C9 11.56 8.44 11 7.75 11zm1.27 4.5a.469.469 0 0 1 .48-.5h5a.47.47 0 0 1 .48.5c-.116 1.316-.759 2.5-2.98 2.5s-2.864-1.184-2.98-2.5zm7.23-4.5c-.69 0-1.25.56-1.25 1.25v1.5a1.25 1.25 0 1 0 2.5 0v-1.5c0-.69-.56-1.25-1.25-1.25z">
               </path>
@@ -15,30 +15,30 @@
               </path>
             </svg>
           </div>
-          <a href="/" class="text-xl font-semibold hover:opacity-80 transition-colors duration-300 text-gray-900 dark:text-white">Github Proxy</a>
+          <a href="/" class="text-xl font-bold tracking-tight hover:opacity-80 transition-colors duration-300 text-gray-900 dark:text-white">
+            Github <span class="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">Proxy</span>
+          </a>
         </div>
-        <div class="flex items-center space-x-8">
+        <div class="flex items-center space-x-1.5">
           <button v-if="isContact" @click="$emit('goHome')"
-            class="w-6 h-6 flex items-center justify-center cursor-pointer hover:opacity-80 transition-colors duration-300"
+            class="p-2 rounded-full cursor-pointer text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors duration-300"
             title="返回首页">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              class="text-gray-600 dark:text-gray-400 transition-colors duration-300">
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
               <polyline points="9,22 9,12 15,12 15,22"></polyline>
             </svg>
           </button>
           <button v-else @click="$emit('goContact')"
-            class="w-6 h-6 flex items-center justify-center cursor-pointer hover:opacity-80 transition-colors duration-300"
+            class="p-2 rounded-full cursor-pointer text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors duration-300"
             title="反馈及建议">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              class="text-gray-600 dark:text-gray-400 transition-colors duration-300">
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
             </svg>
           </button>
           <button @click="$emit('toggleDark')"
-            class="w-6 h-6 flex items-center justify-center cursor-pointer hover:opacity-80 transition-colors duration-300"
+            class="p-2 rounded-full cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-300"
             :title="isDark ? '切换到亮色模式' : '切换到暗黑模式'">
             <svg v-if="isDark" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -55,7 +55,7 @@
             </svg>
             <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              class="text-gray-600 transition-colors duration-300">
+              class="text-gray-500 transition-colors duration-300">
               <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
             </svg>
           </button>

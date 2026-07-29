@@ -2,7 +2,7 @@
   <main class="flex-1 flex items-start justify-center py-8 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
     <div class="w-full max-w-[1000px] mx-auto">
       <div class="pt-6">
-        <button @click="$emit('back')" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors mb-6">
+        <button @click="$emit('back')" class="inline-flex items-center gap-2 px-3 py-1.5 -ml-3 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-500/10 font-medium transition-all mb-6">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m15 18-6-6 6-6"></path>
           </svg>
@@ -17,7 +17,7 @@
           <p class="mt-4 text-gray-600 dark:text-gray-400">加载Releases列表中...</p>
         </div>
 
-        <div v-else-if="releasesError" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center">
+        <div v-else-if="releasesError" class="bg-red-50 dark:bg-red-900/20 ring-1 ring-red-200 dark:ring-red-800 rounded-2xl p-6 text-center animate-fade-in">
           <svg class="h-12 w-12 text-red-500 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -29,11 +29,11 @@
         </div>
 
         <div v-else class="space-y-6">
-          <div v-for="release in releasesData" :key="release.id" class="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 rounded-xl p-4 sm:p-6">
+          <div v-for="release in releasesData" :key="release.id" class="bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-800 rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow animate-fade-in-up">
             <div class="flex flex-col gap-3 mb-4">
               <div class="flex-1">
                 <div class="flex flex-wrap items-center gap-2 mb-2">
-                  <span class="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-semibold rounded-full">
+                  <span class="px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-semibold rounded-full shadow-sm shadow-blue-600/20">
                     {{ release.tag_name }}
                   </span>
                   <span v-if="release.prerelease" class="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-sm font-semibold rounded-full">
@@ -45,35 +45,60 @@
                   <span class="text-xs text-gray-500 dark:text-gray-400 ml-auto">共 {{ totalReleases }} 个版本，{{ totalPages }} 页</span>
                 </div>
                 <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">{{ release.name || release.tag_name }}</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
+                <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
                   发布时间: {{ formatDate(release.published_at) }}
                 </p>
               </div>
             </div>
 
-            <div v-if="release.body" class="prose dark:prose-invert max-w-none mb-4 p-4 bg-gray-50/50 dark:bg-gray-900/30 rounded-lg text-sm text-gray-700 dark:text-gray-300 markdown-body" v-html="renderMarkdown(release.body)"></div>
+            <div v-if="release.body" class="prose dark:prose-invert max-w-none mb-4 p-4 bg-gray-50 dark:bg-gray-950/50 ring-1 ring-gray-100 dark:ring-gray-800 rounded-xl text-sm text-gray-700 dark:text-gray-300 markdown-body" v-html="renderMarkdown(release.body)"></div>
 
-            <div v-if="release.assets && release.assets.length > 0" class="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <div v-if="release.assets && release.assets.length > 0" class="border-t border-gray-100 dark:border-gray-800 pt-4">
               <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">下载资源 ({{ release.assets.length }})</h4>
               <div class="space-y-2">
-                <div v-for="asset in release.assets" :key="asset.id" class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50/50 dark:bg-gray-900/30 rounded-lg hover:bg-gray-100/70 dark:hover:bg-gray-700/50 transition-colors gap-3">
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ asset.name }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ formatSize(asset.size) }} · 下载 {{ asset.download_count }} 次</p>
+                <div v-for="asset in release.assets" :key="asset.id" class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 dark:bg-gray-950/50 ring-1 ring-gray-100 dark:ring-gray-800 rounded-xl hover:ring-gray-200 dark:hover:ring-gray-700 transition-all gap-3">
+                  <div class="flex-1 min-w-0 flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-white dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-gray-700 flex items-center justify-center flex-shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 dark:text-gray-400">
+                        <path d="M21 8v13H3V8"></path>
+                        <path d="M1 3h22v5H1z"></path>
+                        <path d="M10 12h4"></path>
+                      </svg>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ asset.name }}</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">{{ formatSize(asset.size) }} · 下载 {{ asset.download_count }} 次</p>
+                    </div>
                   </div>
                   <div class="flex items-center gap-2 w-full sm:w-auto">
                     <button
                       @click="copyAssetUrl(asset.browser_download_url)"
-                      class="flex-1 sm:flex-none px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-medium rounded-lg transition-colors"
-                      :class="{ 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-700 dark:text-green-400': copiedAssetUrl === asset.browser_download_url }"
+                      class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 ring-1 ring-gray-200 dark:ring-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-medium rounded-xl transition-all"
+                      :class="{ '!ring-green-300 dark:!ring-green-700 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400': copiedAssetUrl === asset.browser_download_url }"
                     >
+                      <svg v-if="copiedAssetUrl === asset.browser_download_url" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                        <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                      </svg>
                       <span v-if="copiedAssetUrl === asset.browser_download_url">已复制</span>
                       <span v-else>复制链接</span>
                     </button>
                     <button
                       @click="downloadAsset(asset.browser_download_url)"
-                      class="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                      class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-medium rounded-xl shadow-sm shadow-blue-600/20 hover:shadow-md hover:shadow-blue-600/25 active:scale-[0.98] transition-all"
                     >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                      </svg>
                       下载
                     </button>
                   </div>
@@ -82,26 +107,26 @@
             </div>
           </div>
 
-          <div class="flex items-center justify-center gap-1 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div class="flex items-center justify-center gap-1.5 mt-6 pt-6 border-t border-gray-200/70 dark:border-gray-800">
             <button
               @click="goToPage(currentPage - 1)"
               :disabled="currentPage <= 1 || loadingReleases"
-              class="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              class="p-2 ring-1 ring-gray-200 dark:ring-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:ring-gray-300 dark:hover:ring-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m15 18-6-6 6-6"></path>
               </svg>
             </button>
 
             <template v-for="page in visiblePages" :key="page">
-              <span v-if="page === '...'" class="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400">…</span>
+              <span v-if="page === '...'" class="px-3 py-1.5 text-sm text-gray-400 dark:text-gray-500">…</span>
               <button
                 v-else
                 @click="goToPage(page)"
                 :class="[
-                  'px-3 py-1.5 border rounded-md text-sm font-medium transition-colors',
+                  'min-w-[36px] px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
                   currentPage === page
-                    ? 'bg-blue-600 text-white border-blue-600 dark:border-blue-600'
-                    : 'border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/20'
+                    : 'ring-1 ring-gray-200 dark:ring-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:ring-gray-300 dark:hover:ring-gray-600'
                 ]">
                 {{ page }}
               </button>
@@ -110,7 +135,7 @@
             <button
               @click="goToPage(currentPage + 1)"
               :disabled="currentPage >= totalPages || loadingReleases"
-              class="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              class="p-2 ring-1 ring-gray-200 dark:ring-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:ring-gray-300 dark:hover:ring-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m9 18 6-6-6-6"></path>
               </svg>

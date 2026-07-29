@@ -19,9 +19,10 @@ Write-Host ""
 # 1. Create build directory
 if (-not (Test-Path $BuildDir)) {
     New-Item -ItemType Directory -Path $BuildDir | Out-Null
-}
-else {
-    Get-ChildItem $BuildDir | Remove-Item -Recurse -Force
+} else {
+    Get-ChildItem $BuildDir -ErrorAction SilentlyContinue | ForEach-Object {
+        Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # 2. Build frontend

@@ -17,6 +17,7 @@ echo ""
 
 # 1. Create build directory
 mkdir -p "$BUILD_DIR"
+rm -rf "$BUILD_DIR"/*
 
 # 2. Build frontend
 echo "[1/4] Building frontend..."
