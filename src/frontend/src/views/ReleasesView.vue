@@ -33,7 +33,7 @@
             <div class="flex flex-col gap-3 mb-4">
               <div class="flex-1">
                 <div class="flex flex-wrap items-center gap-2 mb-2">
-                  <span class="px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-semibold rounded-full shadow-sm shadow-blue-600/20">
+                  <span class="px-3 py-1 bg-blue-600 text-white text-sm font-semibold rounded-full">
                     {{ release.tag_name }}
                   </span>
                   <span v-if="release.prerelease" class="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-sm font-semibold rounded-full">
@@ -92,7 +92,7 @@
                     </button>
                     <button
                       @click="downloadAsset(asset.browser_download_url)"
-                      class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-medium rounded-xl shadow-sm shadow-blue-600/20 hover:shadow-md hover:shadow-blue-600/25 active:scale-[0.98] transition-all"
+                      class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl active:scale-[0.98] transition-all"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -125,7 +125,7 @@
                 :class="[
                   'min-w-[36px] px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
                   currentPage === page
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/20'
+                    ? 'bg-blue-600 text-white'
                     : 'ring-1 ring-gray-200 dark:ring-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:ring-gray-300 dark:hover:ring-gray-600'
                 ]">
                 {{ page }}

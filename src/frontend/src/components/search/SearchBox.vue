@@ -31,7 +31,7 @@
         :class="[
           'px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap shrink-0 h-[48px]',
           isValid
-            ? 'text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md shadow-blue-600/25 hover:shadow-lg hover:shadow-blue-600/30 active:scale-[0.98]'
+            ? 'text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98]'
             : 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-gray-700 cursor-not-allowed'
         ]">
         {{ buttonText }}

@@ -1,35 +1,18 @@
 <template>
   <main class="flex-1 py-8 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
     <!-- 主页：搜索入口 -->
-    <div v-if="currentView === 'home'" class="w-full max-w-[1000px] mx-auto relative">
-      <!-- 装饰背景 -->
-      <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        <div class="absolute inset-x-0 top-0 h-[440px] bg-dot-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black,transparent)]"></div>
-        <div class="absolute -top-16 left-1/2 -translate-x-1/2 w-[560px] h-[340px] bg-gradient-to-r from-blue-400/20 via-indigo-400/20 to-violet-400/20 dark:from-blue-500/10 dark:via-indigo-500/10 dark:to-violet-500/10 rounded-full blur-3xl animate-blob"></div>
-      </div>
-
-      <div class="relative">
-        <div class="pt-10">
+    <div v-if="currentView === 'home'" class="w-full max-w-[1000px] mx-auto">
+      <div>
+        <div class="pt-12 sm:pt-16">
           <div class="text-center w-full mb-10">
-            <div class="inline-flex items-center gap-2 px-3 py-1.5 mb-6 rounded-full bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-700 shadow-sm text-xs font-medium text-gray-600 dark:text-gray-300 animate-fade-in-up">
-              <span class="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 animate-pulse"></span>
-              轻量级 GitHub 资源加速反向代理
-            </div>
-            <h1 class="font-extrabold tracking-tight mb-4 text-5xl sm:text-6xl text-gray-900 dark:text-white transition-colors duration-300 animate-fade-in-up animation-delay-100">
-              Github <span class="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 dark:from-blue-400 dark:via-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">Proxy</span>
+            <h1 class="font-extrabold tracking-tight mb-4 text-4xl sm:text-5xl text-gray-900 dark:text-white transition-colors duration-300 animate-fade-in-up">
+              Github <span class="text-blue-600 dark:text-blue-400">Proxy</span>
             </h1>
-            <p class="text-gray-600 dark:text-gray-400 text-base sm:text-lg max-w-2xl mx-auto animate-fade-in-up animation-delay-200">支持 API、Git Clone、Releases、Archive、Gist、Raw 等资源加速下载，提升 GitHub 文件下载体验。</p>
-            <div class="flex flex-wrap items-center justify-center gap-2 mt-6 animate-fade-in-up animation-delay-300">
-              <span class="px-3 py-1 text-xs font-medium rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 ring-1 ring-blue-200/70 dark:ring-blue-500/20">Git Clone</span>
-              <span class="px-3 py-1 text-xs font-medium rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-200/70 dark:ring-indigo-500/20">Releases</span>
-              <span class="px-3 py-1 text-xs font-medium rounded-full bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 ring-1 ring-violet-200/70 dark:ring-violet-500/20">Archive</span>
-              <span class="px-3 py-1 text-xs font-medium rounded-full bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-1 ring-sky-200/70 dark:ring-sky-500/20">Raw</span>
-              <span class="px-3 py-1 text-xs font-medium rounded-full bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 ring-1 ring-cyan-200/70 dark:ring-cyan-500/20">Gist</span>
-            </div>
+            <p class="text-gray-600 dark:text-gray-400 text-base sm:text-lg max-w-2xl mx-auto animate-fade-in-up animation-delay-100">支持 API、Git Clone、Releases、Archive、Gist、Raw 等资源加速下载，提升 GitHub 文件下载体验。</p>
           </div>
 
           <!-- 搜索框组件 -->
-          <div class="animate-fade-in-up animation-delay-300">
+          <div class="animate-fade-in-up animation-delay-200">
             <SearchBox
               v-model="githubUrl"
               :is-releases-mode="isReleasesMode"
@@ -86,7 +69,7 @@
                   <button
                     @click="handleTokenConfirm"
                     :disabled="!!tokenError"
-                    class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-gray-300 disabled:to-gray-300 dark:disabled:from-gray-700 dark:disabled:to-gray-700 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl shadow-md shadow-blue-600/20 disabled:shadow-none transition-all">
+                    class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors">
                     确认
                   </button>
                 </div>
@@ -100,7 +83,7 @@
               type="button"
               @click="toggleTokenMode"
               class="w-full md:w-auto flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl transition-all whitespace-nowrap h-[48px] bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-700 shadow-sm hover:shadow-md hover:ring-gray-300 dark:hover:ring-gray-600 text-gray-700 dark:text-gray-100">
-              <div class="w-10 h-6 rounded-full transition-all relative shadow-inner" :class="token ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gray-200 dark:bg-gray-700'">
+              <div class="w-10 h-6 rounded-full transition-all relative shadow-inner" :class="token ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'">
                 <div class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300" :class="token ? 'translate-x-4' : 'translate-x-0.5'"></div>
               </div>
               <span class="text-sm font-medium">私有仓库</span>
@@ -109,7 +92,7 @@
               type="button"
               @click="toggleReleasesMode"
               class="w-full md:w-auto flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl transition-all whitespace-nowrap h-[48px] bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-700 shadow-sm hover:shadow-md hover:ring-gray-300 dark:hover:ring-gray-600 text-gray-700 dark:text-gray-100">
-              <div class="w-10 h-6 rounded-full transition-all relative shadow-inner" :class="isReleasesMode ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gray-200 dark:bg-gray-700'">
+              <div class="w-10 h-6 rounded-full transition-all relative shadow-inner" :class="isReleasesMode ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'">
                 <div class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300" :class="isReleasesMode ? 'translate-x-4' : 'translate-x-0.5'"></div>
               </div>
               <span class="text-sm font-medium">版本列表</span>

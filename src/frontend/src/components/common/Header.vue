@@ -4,7 +4,7 @@
       <div class="flex items-center justify-between h-16">
         <div class="flex items-center space-x-3">
           <div
-            class="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 bg-gradient-to-br from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 shadow-md shadow-gray-900/15 dark:shadow-black/30">
+            class="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 bg-gray-900 dark:bg-white shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
               class="w-6 h-6 transition-colors duration-300 fill-white dark:fill-gray-900" aria-hidden="true">
               <path
@@ -16,7 +16,7 @@
             </svg>
           </div>
           <a href="/" class="text-xl font-bold tracking-tight hover:opacity-80 transition-colors duration-300 text-gray-900 dark:text-white">
-            Github <span class="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">Proxy</span>
+            Github <span class="text-blue-600 dark:text-blue-400">Proxy</span>
           </a>
         </div>
         <div class="flex items-center space-x-1.5">

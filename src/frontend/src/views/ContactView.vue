@@ -4,7 +4,7 @@
       <div class="pt-10">
         <div class="text-center w-full mb-12">
           <h1 class="font-extrabold tracking-tight mb-4 text-4xl sm:text-5xl text-gray-900 dark:text-white transition-colors duration-300 animate-fade-in-up">
-            联系与<span class="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">支持</span>
+            联系与<span class="text-blue-600 dark:text-blue-400">支持</span>
           </h1>
           <p class="text-gray-600 dark:text-gray-400 text-base sm:text-lg animate-fade-in-up animation-delay-100">如有任何问题、建议或反馈，欢迎通过以下方式联系我们。</p>
         </div>
@@ -96,7 +96,7 @@
                   <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">如有任何问题或建议，欢迎发送邮件联系我们。</p>
                   <div class="flex gap-2">
                     <button @click="copyEmail"
-                      class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-sm font-medium shadow-sm shadow-blue-600/20 hover:shadow-md hover:shadow-blue-600/25 active:scale-[0.98] transition-all">
+                      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium active:scale-[0.98] transition-all">
                       复制邮箱
                     </button>
                     <a :href="`mailto:${email}`"

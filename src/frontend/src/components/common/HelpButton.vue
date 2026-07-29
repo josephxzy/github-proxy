@@ -13,7 +13,7 @@
     <div
       v-if="!isOpen"
       @click="togglePanel"
-      class="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-full shadow-lg shadow-blue-600/30 ring-4 ring-white/60 dark:ring-gray-950/60 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+      class="w-12 h-12 sm:w-14 sm:h-14 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full shadow-lg ring-4 ring-white/60 dark:ring-gray-950/60 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"></circle>
@@ -31,7 +31,7 @@
       <!-- 面板头部 -->
       <div class="flex items-center justify-between p-3 sm:p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-900">
         <h3 class="font-semibold text-sm sm:text-base text-gray-900 dark:text-white flex items-center gap-2">
-          <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0">
+          <span class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white">
               <circle cx="12" cy="12" r="10"></circle>
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
