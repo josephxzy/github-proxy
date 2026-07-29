@@ -261,6 +261,7 @@ hub.example.com {
 
 ## 深入阅读
 
+- [下载与断点续传实现](docs/下载与断点续传实现.md) — 完整下载管道、Range 预检、脚本处理、流式输出
 - [Token 透传与认证机制](docs/Token透传与认证机制.md) — token 提取、应用、白名单的完整流程
 - [限速与下载稳定性方案](docs/下载限速与稳定性设计.md) — 水位线反压 + per-user token bucket 的设计细节
 
