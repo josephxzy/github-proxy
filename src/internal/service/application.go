@@ -10,8 +10,8 @@ import (
 // Application 应用程序核心类
 // **统一管理所有服务实例**，作为依赖注入容器：
 //
-//	基础设施层：
-//	  - AuthService: 用户认证
+// 基础设施层：
+//	  - TokenWhiteListService: Token 白名单（不限速）
 //	  - AccessControlService: 仓库权限控制（黑白名单）
 //
 //	GitHub 领域层 (github package)：
@@ -21,18 +21,18 @@ import (
 //
 // 所有 Handler 和 Server 通过 Application 获取所需的服务实例。
 type Application struct {
-	Config        *config.AppConfig
-	Auth          *AuthService
-	AccessCtrl    *AccessControlService
-	URLNormalizer *ghproxygithub.URLNormalizer
-	Proxy         *ProxyService
+	Config          *config.AppConfig
+	TokenWhiteList  *TokenWhiteListService
+	AccessCtrl      *AccessControlService
+	URLNormalizer   *ghproxygithub.URLNormalizer
+	Proxy           *ProxyService
 }
 
 // NewApplication 创建应用程序实例并初始化所有服务。
 func NewApplication(cfg *config.AppConfig) *Application {
 	app := &Application{
 		Config: cfg,
-		Auth:   NewAuthService(cfg.AuthUsers.Users),
+		TokenWhiteList: NewTokenWhiteListService(cfg.TokenWhiteList.Tokens),
 		AccessCtrl: NewAccessControlService(
 			cfg.Access.WhiteList,
 			cfg.Access.BlackList,

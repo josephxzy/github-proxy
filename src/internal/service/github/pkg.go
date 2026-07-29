@@ -68,12 +68,8 @@ func ApplyGitHubToken(req *http.Request, url string) {
 	download.ApplyGitHubToken(req, url)
 }
 
-func ExtractUserToken(r *http.Request) string {
-	return download.ExtractUserToken(r)
-}
-
-func ExtractUserTokenFromQuery(u string) string {
-	return download.ExtractUserTokenFromQuery(u)
+func ExtractToken(r *http.Request, rawPath string) string {
+	return download.ExtractToken(r, rawPath)
 }
 
 func ApplyUserToken(req *http.Request, userToken string) {

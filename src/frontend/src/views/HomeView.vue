@@ -89,6 +89,10 @@
         </div>
       </div>
 
+      <div v-if="tokenInvalid" class="max-w-2xl mx-auto mb-6 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg text-sm text-yellow-800 dark:text-yellow-200">
+        你提供的 GitHub Token 似乎已失效，已自动切换为服务器限流模式。请重新设置有效的 Token。
+      </div>
+
       <!-- 帮助按钮组件 -->
       <HelpButton v-if="currentView === 'home'" />
     </div>
@@ -123,7 +127,7 @@ import SearchBox from '../components/search/SearchBox.vue'
 import HelpButton from '../components/common/HelpButton.vue'
 import { useToken } from '../composables/useToken'
 
-const { token, clearToken } = useToken()
+const { token, tokenInvalid, clearToken } = useToken()
 const showTokenModal = ref(false)
 const tokenVisible = ref(false)
 const tokenDraft = ref(token.value)

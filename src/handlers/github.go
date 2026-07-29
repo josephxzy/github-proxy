@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github-proxy/config"
 	"github-proxy/internal/service"
 	ghproxyservice "github-proxy/internal/service/github"
 
@@ -53,34 +52,20 @@ func GitHubProxyHandler(c *gin.Context) {
 	// 步骤1：标准化路径，去除前导 "/"
 	rawPath := normalizePath(c.Request.URL.RequestURI())
 
-	// 提取用户提供的 GitHub Token（从请求头）
-	userToken := ghproxyservice.ExtractUserToken(c.Request)
-	if userToken != "" {
-		c.Set("userToken", userToken)
-	}
-	// 也从 URL 查询参数中提取（用于新窗口下载场景）
-	if qToken := ghproxyservice.ExtractUserTokenFromQuery(rawPath); qToken != "" && userToken == "" {
-		c.Set("userToken", qToken)
+	// 步骤2：统一提取 token（优先级：X-GitHub-Token 头 > ?token= 参数 > Authorization: Basic）
+	token := ghproxyservice.ExtractToken(c.Request, rawPath)
+	if token != "" {
+		c.Set("userToken", token)
 	}
 
 	// 剥离代理专用查询参数（token、fast），不发给 GitHub
 	rawPath = ghproxyservice.StripProxyQueryParams(rawPath)
 
-	// 获取配置
-	cfg := config.GetConfig()
+	// 步骤3：Token 白名单检查
 	authenticated := false
-
-	// 步骤2：身份验证（如果配置了认证用户）
-	if len(cfg.AuthUsers.Users) > 0 {
-		authResult := globalApplication.Auth.Authenticate(rawPath)
-		if authResult.AuthPrefix != "" {
-			c.Set("authPrefix", authResult.AuthPrefix)
-		}
-		rawPath = authResult.RawPath
-		authenticated = authResult.Authenticated
+	if token != "" {
+		authenticated = globalApplication.TokenWhiteList.IsWhitelisted(token)
 	}
-
-	// 将认证状态存入上下文，供后续中间件/处理器使用
 	c.Set("authenticated", authenticated)
 
 	// 步骤3：根据 URL 类型分流处理

@@ -62,6 +62,11 @@ try {
     Pop-Location
 }
 
+# 4. Copy config
+Write-Host "[4/4] Copying config..." -ForegroundColor Yellow
+Copy-Item "$SrcDir/config.toml" $BuildDir
+Write-Host "  Config copied to build/" -ForegroundColor Green
+Write-Host ""
 
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host " Build complete!" -ForegroundColor Green

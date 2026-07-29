@@ -5,9 +5,12 @@ port = 5000
 # Github文件大小限制（字节），默认2GB
 fileSize = 2147483648
 enableFrontend = true
-# GitHub Personal Access Token (PAT)，用于提高 API 请求限流（60次/小时 → 5000次/小时）
-# 获取方式: https://github.com/settings/tokens
-# 留空则不使用 Token（Releases 列表等功能仍可用，但限流较低）
+# 水位线缓冲区大小（字节），默认 8MB
+# 100Mbps 服务器建议 8MB，500Mbps 建议 16MB，1Gbps 建议 32MB
+bufferSize = 8388608
+# GitHub Personal Access Token (PAT)，用于服务器端 API 限流
+# 仅在用户未提供 token 时对 api.github.com 请求生效，不影响文件下载
+# 留空则不使用
 githubToken = ""
 
 [rateLimit]
@@ -19,6 +22,11 @@ apiReleaseHourly = 3333
 apiRepoHourly = 3333
 # API 其他请求每小时最大请求数，默认 3333
 apiOtherHourly = 3333
+# 下载限速（字节/秒），0=不限速，对白名单用户无效
+# 示例: 5242880 = 5MB/s, 10485760 = 10MB/s
+downloadBytesPerSec = 0
+# 全局限速（字节/秒），所有未认证用户共享，0=不限速
+globalBytesPerSec = 0
 
 [access]
 # GitHub仓库白名单（支持通配符）
@@ -39,10 +47,9 @@ blackList = [
 # 留空不使用代理
 proxy = "" 
 
-# [可选] 用户认证
-# 通过路径 /user/pwd/ 实现认证，认证成功的用户不限速
-# 环境变量: AUTH_USERS="user1:pass1,user2:pass2"
-[authUsers]
-# 允许通过路径认证的用户列表，格式为 "用户名:密码"
-# 留空表示不启用认证功能
-users = []
+# [可选] Token 白名单
+# 白名单中的 GitHub Token 不限速（通过请求头 X-GitHub-Token 或查询参数 ?token= 传入）
+# 环境变量: TOKEN_WHITELIST=ghp_xxx,ghp_yyy
+[tokenWhiteList]
+# GitHub Token 白名单，留空表示无人豁免限速
+tokens = []

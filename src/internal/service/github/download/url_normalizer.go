@@ -48,7 +48,7 @@ func (u *URLNormalizer) ensureHTTPS(rawPath string) string {
 	if IsShortGitHubPath(rawPath) {
 		return "https://github.com/" + rawPath
 	}
-	return "https://" + rawPath
+	return rawPath
 }
 
 func (u *URLNormalizer) validateGitHubURL(rawPath string, result *NormalizeResult) bool {

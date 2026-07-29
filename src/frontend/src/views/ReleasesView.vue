@@ -125,6 +125,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { renderMarkdown } from '../markdown.js'
+import { useToken } from '../composables/useToken'
+
+const { markTokenInvalid } = useToken()
 
 const props = defineProps({
   repoUrl: String,
@@ -201,6 +204,10 @@ const fetchReleases = async (page = 1) => {
       fetchOptions.headers = { 'X-GitHub-Token': props.token }
     }
     const response = await fetch(proxyUrl, fetchOptions)
+
+    if (response.headers.get('X-Token-Status') === 'invalid') {
+      markTokenInvalid()
+    }
 
     if (!response.ok) {
       if (response.status === 403) {

@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 
+	"github-proxy/config"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,34 +15,68 @@ const (
 	flushThreshold   = 64 * 1024  // 每 64KB 刷新一次
 )
 
-// streamToClient 流式传输函数，直接读取并写入客户端。
-// 去掉了 io.Pipe 管道层，避免同步管道（内部仅 64KB 缓冲）
-// 在被填满后导致的管道阻塞和背压问题。
-//
-// 工作流程:
-//  1. 从上游（GitHub）读取数据到缓冲区
-//  2. 写入 Gin ResponseWriter
-//  3. 每达到 flushThreshold 字节就 Flush 一次，确保数据及时推送给客户端
-//  4. 循环直到上游数据读完
-//
-// 相比原双 goroutine + io.Pipe 架构:
-//   - 减少了一层数据拷贝（io.Pipe → bufio.Writer）
-//   - 去掉了 sync.WaitGroup 的同步开销
-//   - 去掉了 256KB 双层缓冲，降低内存占用
-//   - 客户端慢速读取时会轻微影响上游读取速度，但实际影响极小
-func streamToClient(c *gin.Context, body io.Reader) int64 {
+func streamToClient(c *gin.Context, body io.Reader, w io.Writer) int64 {
 	buf := bufio.NewReaderSize(body, streamBufferSize)
-
-	w := &flushingWriter{
-		writer:        c.Writer,
-		flusher:       c.Writer.(http.Flusher),
-		flushInterval: flushThreshold,
-	}
-
 	written, _ := io.Copy(w, buf)
-	w.Flush()
-
+	if fw, ok := w.(*flushingWriter); ok {
+		fw.Flush()
+	}
 	return written
+}
+
+// streamToClientWithWaterline 带水位线反压的流式传输。
+// 生产端从 GitHub 全速读取，受水位线暂停控制。
+// 消费端通过 rateLimitedWriter 限速写入客户端。
+func streamToClientWithWaterline(c *gin.Context, body io.Reader, rlw *rateLimitedWriter) int64 {
+	cfg := config.GetConfig()
+	bufCap := cfg.Server.BufferSize
+	if bufCap <= 0 {
+		bufCap = 8 * 1024 * 1024
+	}
+	wb := newWaterlineBuffer(int(bufCap))
+
+	var written int64
+	producerDone := make(chan struct{})
+
+	// 生产者：从 GitHub 读取 → 写入水位线缓冲区
+	go func() {
+		defer close(producerDone)
+		chunk := make([]byte, 32*1024)
+		for {
+			wb.WaitUnpaused()
+			n, err := body.Read(chunk)
+			if n > 0 {
+				wb.Write(chunk[:n])
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	// 消费者：从缓冲区读取 → 限速写入客户端
+	out := make([]byte, 32*1024)
+	for {
+		n := wb.Read(out)
+		if n > 0 {
+			wn, _ := rlw.Write(out[:n])
+			written += int64(wn)
+		}
+		select {
+		case <-producerDone:
+			// 消费完缓冲区残留数据
+			for {
+				n := wb.Read(out)
+				if n == 0 {
+					break
+				}
+				wn, _ := rlw.Write(out[:n])
+				written += int64(wn)
+			}
+			return written
+		default:
+		}
+	}
 }
 
 // flushingWriter 是一个包装的 Writer，在写入一定量数据后自动 Flush。

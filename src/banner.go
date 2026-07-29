@@ -22,12 +22,12 @@ func printBanner(cfg *config.AppConfig) {
 	fmt.Printf(" 代理: %s\n", cfg.Access.Proxy)
 	fmt.Printf(" Token: %s\n", boolStr(cfg.Server.GitHubToken != "", "已配置", "未配置"))
 
-	// 显示认证用户数量
-	auth := "未启用"
-	if n := len(cfg.AuthUsers.Users); n > 0 {
-		auth = fmt.Sprintf("%d用户", n)
+	// 显示 Token 白名单数量
+	whiteList := "未启用"
+	if n := len(cfg.TokenWhiteList.Tokens); n > 0 {
+		whiteList = fmt.Sprintf("%d个", n)
 	}
-	fmt.Printf(" 认证: %s\n", auth)
+	fmt.Printf(" 白名单: %s\n", whiteList)
 	fmt.Println("============================================")
 	fmt.Println()
 }

@@ -65,6 +65,7 @@ func InitHTTPClients() {
 			DialContext: (&net.Dialer{
 				Timeout:   30 * time.Second,
 				KeepAlive: 30 * time.Second,
+				Control:   setSocketBuffer,
 			}).DialContext,
 			MaxIdleConns:          1000,
 			MaxIdleConnsPerHost:   1000,

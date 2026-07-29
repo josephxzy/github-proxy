@@ -79,6 +79,15 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 	}
 	req.Header.Del("Host")
 
+	if c.Request.ContentLength > 0 {
+		req.ContentLength = c.Request.ContentLength
+	} else if cl := c.Request.Header.Get("Content-Length"); cl != "" {
+		if size, err := strconv.ParseInt(cl, 10, 64); err == nil && size > 0 {
+			req.ContentLength = size
+			req.Header.Del("Content-Length")
+		}
+	}
+
 	// 应用用户提供的 GitHub Token（优先级高于服务器 Token）
 	if userToken, ok := c.Get("userToken"); ok {
 		ghproxyservice.ApplyUserToken(req, userToken.(string))
@@ -173,6 +182,27 @@ func getAuthFromContext(c *gin.Context) bool {
 		return v.(bool)
 	}
 	return false
+}
+
+func getDownloadLimiter(c *gin.Context) *rateLimitedWriter {
+	fw := &flushingWriter{
+		writer:        c.Writer,
+		flusher:       c.Writer.(http.Flusher),
+		flushInterval: flushThreshold,
+	}
+	authenticated := getAuthFromContext(c)
+
+	// 白名单用户不限速
+	if authenticated {
+		return &rateLimitedWriter{writer: fw}
+	}
+
+	cfg := config.GetConfig()
+	return &rateLimitedWriter{
+		writer: fw,
+		user:   newRateLimiter(cfg.RateLimit.DownloadBytesPerSec),
+		global: getGlobalLimiter(),
+	}
 }
 
 // handleScriptResponse 处理脚本文件 (.sh/.ps1) 的响应。
@@ -301,9 +331,9 @@ func writeResponse(c *gin.Context, resp *http.Response, body io.Reader, knownSiz
 	// 立即写入状态码和响应头
 	c.Writer.WriteHeaderNow()
 
-	// 开始流式传输数据
+	// 开始流式传输数据（带水位线反压）
 	transferStart := time.Now()
-	bytesWritten := streamToClient(c, body)
+	bytesWritten := streamToClientWithWaterline(c, body, getDownloadLimiter(c))
 	transferTime := time.Since(transferStart)
 
 	// 这些变量可用于日志记录或监控（当前未使用）

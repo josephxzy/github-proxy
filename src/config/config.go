@@ -28,14 +28,17 @@ type AppConfig struct {
 		FileSize       int64  `toml:"fileSize"`       // 单文件最大大小（字节），默认 2GB
 		EnableFrontend bool   `toml:"enableFrontend"` // 是否启用 Web 前端界面，默认 true
 		GitHubToken    string `toml:"githubToken"`    // GitHub Personal Access Token，用于提高 API 速率限制
+		BufferSize     int64  `toml:"bufferSize"`     // 水位线缓冲区大小（字节），默认 8MB
 	} `toml:"server"`
 
 	// RateLimit 速率限制配置
 	RateLimit struct {
-		APISearchHourly  int `toml:"apiSearchHourly"`  // 搜索 API 每小时请求限制，默认 1200
-		APIReleaseHourly int `toml:"apiReleaseHourly"` // 发布版本 API 每小时请求限制，默认 3333
-		APIRepoHourly    int `toml:"apiRepoHourly"`    // 仓库 API 每小时请求限制，默认 3333
-		APIOtherHourly   int `toml:"apiOtherHourly"`   // 其他 API 每小时请求限制，默认 3333
+		APISearchHourly      int   `toml:"apiSearchHourly"`
+		APIReleaseHourly     int   `toml:"apiReleaseHourly"`
+		APIRepoHourly        int   `toml:"apiRepoHourly"`
+		APIOtherHourly       int   `toml:"apiOtherHourly"`
+		DownloadBytesPerSec  int64 `toml:"downloadBytesPerSec"`  // 单用户下载限速（字节/秒），0=不限速
+		GlobalBytesPerSec    int64 `toml:"globalBytesPerSec"`    // 全局限速（字节/秒），0=不限速
 	} `toml:"rateLimit"`
 
 	// Access 访问控制配置
@@ -45,10 +48,10 @@ type AppConfig struct {
 		Proxy     string   `toml:"proxy"`     // 上游代理地址，用于转发请求到 GitHub
 	} `toml:"access"`
 
-	// AuthUsers 认证用户配置
-	AuthUsers struct {
-		Users []string `toml:"users"` // 允许访问的用户 Token 列表（Basic Auth）
-	} `toml:"authUsers"`
+	// TokenWhiteList Token 白名单配置
+	TokenWhiteList struct {
+		Tokens []string `toml:"tokens"` // 白名单 GitHub Token 列表，匹配则不限速
+	} `toml:"tokenWhiteList"`
 }
 
 var (
@@ -68,23 +71,29 @@ func DefaultConfig() *AppConfig {
 			FileSize       int64  `toml:"fileSize"`
 			EnableFrontend bool   `toml:"enableFrontend"`
 			GitHubToken    string `toml:"githubToken"`
+			BufferSize     int64  `toml:"bufferSize"`
 		}{
-			Host:           "0.0.0.0",              // 监听所有网络接口
-			Port:           5000,                    // 默认端口
-			FileSize:       2 * 1024 * 1024 * 1024, // 2GB 文件大小限制
-			EnableFrontend: true,                    // 默认启用前端
-			GitHubToken:    "",                      // 无默认 Token
+			Host:           "0.0.0.0",
+			Port:           5000,
+			FileSize:       2 * 1024 * 1024 * 1024,
+			EnableFrontend: true,
+			GitHubToken:    "",
+			BufferSize:     8 * 1024 * 1024,
 		},
 		RateLimit: struct {
-			APISearchHourly  int `toml:"apiSearchHourly"`
-			APIReleaseHourly int `toml:"apiReleaseHourly"`
-			APIRepoHourly    int `toml:"apiRepoHourly"`
-			APIOtherHourly   int `toml:"apiOtherHourly"`
+			APISearchHourly      int   `toml:"apiSearchHourly"`
+			APIReleaseHourly     int   `toml:"apiReleaseHourly"`
+			APIRepoHourly        int   `toml:"apiRepoHourly"`
+			APIOtherHourly       int   `toml:"apiOtherHourly"`
+			DownloadBytesPerSec  int64 `toml:"downloadBytesPerSec"`
+			GlobalBytesPerSec    int64 `toml:"globalBytesPerSec"`
 		}{
-			APISearchHourly:  1200,  // 搜索API：每小时1200次
-			APIReleaseHourly: 3333,  // 发布API：每小时3333次
-			APIRepoHourly:    3333,  // 仓库API：每小时3333次
-			APIOtherHourly:   3333,  // 其他API：每小时3333次
+			APISearchHourly:     1200,
+			APIReleaseHourly:    3333,
+			APIRepoHourly:       3333,
+			APIOtherHourly:      3333,
+			DownloadBytesPerSec: 0,
+			GlobalBytesPerSec:   0,
 		},
 		Access: struct {
 			WhiteList []string `toml:"whiteList"`
@@ -95,10 +104,10 @@ func DefaultConfig() *AppConfig {
 			BlackList: []string{}, // 空黑名单
 			Proxy:     "",        // 无上游代理
 		},
-		AuthUsers: struct {
-			Users []string `toml:"users"`
+		TokenWhiteList: struct {
+			Tokens []string `toml:"tokens"`
 		}{
-			Users: []string{}, // 无认证用户
+			Tokens: []string{}, // 无白名单 token
 		},
 	}
 }
@@ -118,7 +127,7 @@ func GetConfig() *AppConfig {
 	configCopy := *appConfig
 	configCopy.Access.WhiteList = append([]string(nil), appConfig.Access.WhiteList...)
 	configCopy.Access.BlackList = append([]string(nil), appConfig.Access.BlackList...)
-	configCopy.AuthUsers.Users = append([]string(nil), appConfig.AuthUsers.Users...)
+	configCopy.TokenWhiteList.Tokens = append([]string(nil), appConfig.TokenWhiteList.Tokens...)
 
 	return &configCopy
 }
@@ -170,10 +179,11 @@ func LoadConfig() error {
 //	API_RELEASE_HOURLY   - 发布 API 每小时限制
 //	API_REPO_HOURLY      - 仓库 API 每小时限制
 //	API_OTHER_HOURLY     - 其他 API 每小时限制
+//	DOWNLOAD_RATE        - 下载限速（字节/秒），0=不限速
 //	ACCESS_PROXY         - 上游代理地址
 //	REPO_WHITELIST       - 仓库白名单（逗号分隔）
 //	REPO_BLACKLIST       - 仓库黑名单（逗号分隔）
-//	AUTH_USERS           - 认证用户列表（逗号分隔）
+//	TOKEN_WHITELIST      - Token 白名单（逗号分隔）
 func overrideFromEnv(cfg *AppConfig) {
 	// 服务器配置
 	if val := os.Getenv("SERVER_HOST"); val != "" {
@@ -189,6 +199,11 @@ func overrideFromEnv(cfg *AppConfig) {
 	}
 	if val := os.Getenv("GITHUB_TOKEN"); val != "" {
 		cfg.Server.GitHubToken = val
+	}
+	if val := os.Getenv("BUFFER_SIZE"); val != "" {
+		if size, err := strconv.ParseInt(val, 10, 64); err == nil && size > 0 {
+			cfg.Server.BufferSize = size
+		}
 	}
 	if val := os.Getenv("MAX_FILE_SIZE"); val != "" {
 		if size, err := strconv.ParseInt(val, 10, 64); err == nil && size > 0 {
@@ -217,6 +232,16 @@ func overrideFromEnv(cfg *AppConfig) {
 			cfg.RateLimit.APIOtherHourly = v
 		}
 	}
+	if val := os.Getenv("DOWNLOAD_RATE"); val != "" {
+		if v, err := strconv.ParseInt(val, 10, 64); err == nil && v > 0 {
+			cfg.RateLimit.DownloadBytesPerSec = v
+		}
+	}
+	if val := os.Getenv("GLOBAL_RATE"); val != "" {
+		if v, err := strconv.ParseInt(val, 10, 64); err == nil && v > 0 {
+			cfg.RateLimit.GlobalBytesPerSec = v
+		}
+	}
 
 	// 访问控制配置
 	if val := os.Getenv("ACCESS_PROXY"); val != "" {
@@ -229,9 +254,9 @@ func overrideFromEnv(cfg *AppConfig) {
 		cfg.Access.BlackList = append(cfg.Access.BlackList, strings.Split(val, ",")...)
 	}
 
-	// 认证用户配置
-	if val := os.Getenv("AUTH_USERS"); val != "" {
-		cfg.AuthUsers.Users = append(cfg.AuthUsers.Users, strings.Split(val, ",")...)
+	// Token 白名单配置
+	if val := os.Getenv("TOKEN_WHITELIST"); val != "" {
+		cfg.TokenWhiteList.Tokens = append(cfg.TokenWhiteList.Tokens, strings.Split(val, ",")...)
 	}
 }
 

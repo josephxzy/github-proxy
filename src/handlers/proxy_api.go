@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
 	ghproxyservice "github-proxy/internal/service/github"
 	"github-proxy/pkg/network"
@@ -65,6 +66,15 @@ func proxyAPIRequest(c *gin.Context, u string, redirectCount int) {
 	// 删除 Host 头，让 Go 自动设置正确的 Host
 	req.Header.Del("Host")
 
+	if c.Request.ContentLength > 0 {
+		req.ContentLength = c.Request.ContentLength
+	} else if cl := c.Request.Header.Get("Content-Length"); cl != "" {
+		if size, err := strconv.ParseInt(cl, 10, 64); err == nil && size > 0 {
+			req.ContentLength = size
+			req.Header.Del("Content-Length")
+		}
+	}
+
 	// 应用用户提供的 GitHub Token（优先级高于服务器 Token）
 	if userToken, ok := c.Get("userToken"); ok {
 		ghproxyservice.ApplyUserToken(req, userToken.(string))
@@ -81,6 +91,34 @@ func proxyAPIRequest(c *gin.Context, u string, redirectCount int) {
 		c.String(http.StatusInternalServerError, fmt.Sprintf("server error %v", err))
 		return
 	}
+
+	// 用户 token 失效时，用服务器 token 重试一次（仅 GET/HEAD，避免 body 已消费）
+	_, hasUserToken := c.Get("userToken")
+	if hasUserToken && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) && (c.Request.Method == "GET" || c.Request.Method == "HEAD") {
+		resp.Body.Close()
+		req2, err := http.NewRequestWithContext(ctx, c.Request.Method, u, nil)
+		if err != nil {
+			c.String(http.StatusInternalServerError, fmt.Sprintf("server error %v", err))
+			return
+		}
+		for key, values := range c.Request.Header {
+			for _, value := range values {
+				req2.Header.Add(key, value)
+			}
+		}
+		req2.Header.Del("Host")
+		ghproxyservice.ApplyGitHubToken(req2, u)
+		resp, err = network.GetGlobalHTTPClient().Do(req2)
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			c.String(http.StatusInternalServerError, fmt.Sprintf("server error %v", err))
+			return
+		}
+		c.Header("X-Token-Status", "invalid")
+	}
+	defer resp.Body.Close()
 	defer resp.Body.Close()
 
 	// 处理重定向：GitHub 可能返回 301/302 重定向
@@ -99,7 +137,7 @@ func proxyAPIRequest(c *gin.Context, u string, redirectCount int) {
 	c.Status(resp.StatusCode)
 	copyResponseHeaders(c, resp)
 	c.Header("Cache-Control", "no-store")
-	c.Header("Access-Control-Expose-Headers", "Link, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-GitHub-Request-Id")
+	c.Header("Access-Control-Expose-Headers", "Link, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-GitHub-Request-Id, X-Token-Status")
 	c.Writer.WriteHeaderNow()
 
 	// 直接将响应体流式复制到客户端（API 响应通常较小）

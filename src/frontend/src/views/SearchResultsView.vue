@@ -213,6 +213,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { renderMarkdown } from '../markdown.js'
+import { useToken } from '../composables/useToken'
+
+const { markTokenInvalid } = useToken()
 
 const props = defineProps({
   searchQuery: String,
@@ -358,6 +361,10 @@ const searchRepositories = async (page = 1) => {
       fetchOptions.headers = { 'X-GitHub-Token': props.token }
     }
     const response = await fetch(proxyUrl, fetchOptions)
+
+    if (response.headers.get('X-Token-Status') === 'invalid') {
+      markTokenInvalid()
+    }
 
     if (!response.ok) {
       let errorMsg = `搜索失败: ${response.status} ${response.statusText}`
@@ -527,6 +534,10 @@ const showReadme = async (repo) => {
       fetchOptions.headers = { 'X-GitHub-Token': props.token }
     }
     const response = await fetch(proxyUrl, fetchOptions)
+
+    if (response.headers.get('X-Token-Status') === 'invalid') {
+      markTokenInvalid()
+    }
 
     if (!response.ok) {
       if (response.status === 404) {

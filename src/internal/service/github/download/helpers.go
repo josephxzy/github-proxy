@@ -1,6 +1,7 @@
 package github
 
 import (
+	"encoding/base64"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -16,11 +17,11 @@ func IsShortGitHubPath(path string) bool {
 }
 
 var githubExps = []*regexp.Regexp{
-	regexp.MustCompile(`^(?:https?://)?github\.com/([^/]+)/([^/]+)/(?:releases|archive)/.*`),
-	regexp.MustCompile(`^(?:https?://)?github\.com/([^/]+)/([^/]+)/(?:blob|raw)/.*`),
-	regexp.MustCompile(`^(?:https?://)?github\.com/([^/]+)/([^/]+)/(?:info|git-).*`),
-	regexp.MustCompile(`^(?:https?://)?raw\.github(?:usercontent|github)\.com/([^/]+)/([^/]+)/.+?/.+`),
-	regexp.MustCompile(`^(?:https?://)?gist\.(?:githubusercontent|github)\.com/([^/]+)/([^/]+).*`),
+	regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/(?:releases|archive)/.*`),
+	regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/(?:blob|raw)/.*`),
+	regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/(?:info|git-).*`),
+	regexp.MustCompile(`^https?://raw\.github(?:usercontent|github)\.com/([^/]+)/([^/]+)/.+?/.+`),
+	regexp.MustCompile(`^https?://gist\.(?:githubusercontent|github)\.com/([^/]+)/([^/]+).*`),
 }
 
 func MatchURL(u string) []string {
@@ -56,24 +57,48 @@ func IsGitHubAPIURL(u string) bool {
 
 func ApplyGitHubToken(req *http.Request, url string) {
 	cfg := config.GetConfig()
-	if cfg.Server.GitHubToken != "" && strings.Contains(url, "api.github.com/repos/") && strings.Contains(url, "/releases") {
-		req.Header.Set("Authorization", "token "+cfg.Server.GitHubToken)
+	if cfg.Server.GitHubToken != "" && strings.Contains(url, "api.github.com") {
+		if req.Header.Get("Authorization") == "" {
+			req.Header.Set("Authorization", "token "+cfg.Server.GitHubToken)
+		}
 	}
 }
 
-func ExtractUserToken(r *http.Request) string {
+func ExtractToken(r *http.Request, rawPath string) string {
 	if token := r.Header.Get("X-GitHub-Token"); token != "" {
 		return token
 	}
-	return ""
+	if token := extractTokenFromQuery(rawPath); token != "" {
+		return token
+	}
+	return extractTokenFromBasicAuth(r)
 }
 
-func ExtractUserTokenFromQuery(u string) string {
-	parsed, err := url.Parse(u)
+func extractTokenFromQuery(rawPath string) string {
+	parsed, err := url.Parse(rawPath)
 	if err != nil {
 		return ""
 	}
 	return parsed.Query().Get("token")
+}
+
+func extractTokenFromBasicAuth(r *http.Request) string {
+	auth := r.Header.Get("Authorization")
+	if !strings.HasPrefix(auth, "Basic ") {
+		return ""
+	}
+	payload, err := base64.StdEncoding.DecodeString(auth[6:])
+	if err != nil {
+		return ""
+	}
+	parts := strings.SplitN(string(payload), ":", 2)
+	if len(parts) != 2 {
+		return ""
+	}
+	if parts[1] != "" {
+		return parts[1]
+	}
+	return parts[0]
 }
 
 func ApplyUserToken(req *http.Request, userToken string) {

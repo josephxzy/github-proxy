@@ -15,15 +15,15 @@ import (
 // 用于从各种格式的 GitHub URL 中提取 owner 和 repo 信息
 var githubExps = []*regexp.Regexp{
 	// 匹配 GitHub API 端点（search、repos 等）
-	regexp.MustCompile(`^(?:https?://)?api\.github\.com/(?:search|repos)/.*`),
+	regexp.MustCompile(`^https?://api\.github\.com/(?:search|repos)/.*`),
 	// 匹配 releases 和 archive 下载链接
-	regexp.MustCompile(`^(?:https?://)?github\.com/([^/]+)/([^/]+)/(?:releases|archive)/.*`),
+	regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/(?:releases|archive)/.*`),
 	// 匹配 blob 和 raw 文件查看/下载链接
-	regexp.MustCompile(`^(?:https?://)?github\.com/([^/]+)/([^/]+)/(?:blob|raw)/.*`),
+	regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/(?:blob|raw)/.*`),
 	// 匹配 raw.githubusercontent.com 链接
-	regexp.MustCompile(`^(?:https?://)?raw\.github(?:usercontent|github)\.com/([^/]+)/([^/]+)/.+?/.+`),
+	regexp.MustCompile(`^https?://raw\.github(?:usercontent|github)\.com/([^/]+)/([^/]+)/.+?/.+`),
 	// 匹配 gist 链接
-	regexp.MustCompile(`^(?:https?://)?gist\.(?:githubusercontent|github)\.com/([^/]+)/([^/]+).*`),
+	regexp.MustCompile(`^https?://gist\.(?:githubusercontent|github)\.com/([^/]+)/([^/]+).*`),
 }
 
 // MatchURL 从 GitHub URL 中提取 owner 和 repo 信息。
@@ -56,9 +56,10 @@ func MatchURL(u string) []string {
 //   - 其他 API 通常不需要如此高的速率
 func ApplyGitHubToken(req *http.Request, url string) {
 	cfg := config.GetConfig()
-	// 仅当配置了 Token 且是 Release API 请求时才添加
-	if cfg.Server.GitHubToken != "" && strings.Contains(url, "api.github.com/repos/") && strings.Contains(url, "/releases") {
-		req.Header.Set("Authorization", "token "+cfg.Server.GitHubToken)
+	if cfg.Server.GitHubToken != "" && strings.Contains(url, "api.github.com") {
+		if req.Header.Get("Authorization") == "" {
+			req.Header.Set("Authorization", "token "+cfg.Server.GitHubToken)
+		}
 	}
 }
 
