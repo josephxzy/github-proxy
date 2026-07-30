@@ -321,9 +321,9 @@ const downloadRepoZip = async () => {
   }
 
   const zipUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/${branch}.zip`
-  let proxyUrl = proxyHost + '/' + zipUrl + '?fast=1'
+  let proxyUrl = proxyHost + '/' + zipUrl
   if (token.value) {
-    proxyUrl += '&token=' + token.value
+    proxyUrl += '?token=' + token.value
   }
   window.open(proxyUrl, '_blank')
 }

@@ -39,7 +39,7 @@
                 <option value="all">全部</option>
               <option value="name">名称</option>
               <option value="description">描述</option>
-              <option value="readme">README</option>
+              <option value="readme">ReadMe</option>
               </select>
             </div>
 
@@ -127,7 +127,7 @@
                     <polyline points="7 10 12 15 17 10"></polyline>
                     <line x1="12" y1="15" x2="12" y2="3"></line>
                   </svg>
-                  下载 ZIP
+                  ZIP
                 </button>
                 <button
                   @click="viewReleases(repo)"
@@ -139,7 +139,7 @@
                   @click="showReadme(repo)"
                   class="flex-1 sm:flex-none px-2 sm:px-4 py-1.5 sm:py-2 ring-1 ring-gray-200 dark:ring-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:ring-gray-300 dark:hover:ring-gray-600 text-xs sm:text-sm font-medium rounded-xl transition-all whitespace-nowrap"
                 >
-                  README
+                  ReadMe
                 </button>
               </div>
             </div>
@@ -480,11 +480,10 @@ const downloadRepoZip = async (repo) => {
     console.error('Failed to fetch default branch, using main:', e)
   }
 
-  // 使用快速模式下载 (fast=1)：跳过预检，提升响应速度
   const zipUrl = `https://github.com/${owner}/${repoName}/archive/refs/heads/${branch}.zip`
-  let proxyUrl = props.proxyHost + '/' + zipUrl + '?fast=1'
+  let proxyUrl = props.proxyHost + '/' + zipUrl
   if (props.token) {
-    proxyUrl += '&token=' + props.token
+    proxyUrl += '?token=' + props.token
   }
   window.open(proxyUrl, '_blank')
 }

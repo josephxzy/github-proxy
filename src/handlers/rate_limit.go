@@ -122,3 +122,9 @@ func (w *rateLimitedWriter) Write(p []byte) (int, error) {
 	}
 	return w.writer.Write(p)
 }
+
+func (w *rateLimitedWriter) Flush() {
+	if fw, ok := w.writer.(interface{ Flush() }); ok {
+		fw.Flush()
+	}
+}

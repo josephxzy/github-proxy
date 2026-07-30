@@ -40,6 +40,7 @@ func streamToClientWithWaterline(c *gin.Context, body io.Reader, rlw *rateLimite
 
 	// 生产者：从 GitHub 读取 → 写入水位线缓冲区
 	go func() {
+		defer wb.Close()
 		defer close(producerDone)
 		chunk := make([]byte, 32*1024)
 		for {
@@ -64,7 +65,6 @@ func streamToClientWithWaterline(c *gin.Context, body io.Reader, rlw *rateLimite
 		}
 		select {
 		case <-producerDone:
-			// 消费完缓冲区残留数据
 			for {
 				n := wb.Read(out)
 				if n == 0 {
@@ -73,6 +73,7 @@ func streamToClientWithWaterline(c *gin.Context, body io.Reader, rlw *rateLimite
 				wn, _ := rlw.Write(out[:n])
 				written += int64(wn)
 			}
+			rlw.Flush()
 			return written
 		default:
 		}

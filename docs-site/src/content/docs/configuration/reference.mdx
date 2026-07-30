@@ -1,0 +1,75 @@
+---
+title: 配置参考
+---
+
+所有配置项支持 `config.toml` 和环境变量。环境变量优先级更高。
+
+## config.toml
+
+```toml
+[server]
+host = "0.0.0.0"
+port = 5000
+fileSize = 2147483648
+enableFrontend = true
+githubToken = ""
+bufferSize = 8388608
+
+[rateLimit]
+apiSearchHourly = 1200
+apiReleaseHourly = 3333
+apiRepoHourly = 3333
+apiOtherHourly = 3333
+downloadBytesPerSec = 0
+globalBytesPerSec = 0
+ipRequestLimit = 0
+
+[access]
+whiteList = []
+blackList = []
+proxy = ""
+
+[tokenWhiteList]
+tokens = []
+```
+
+## 环境变量
+
+### 服务器
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `SERVER_HOST` | `0.0.0.0` | 监听地址 |
+| `SERVER_PORT` | `5000` | 监听端口 |
+| `ENABLE_FRONTEND` | `true` | 启用 Web 前端，关闭后仅提供 API |
+| `MAX_FILE_SIZE` | `2147483648` | 单文件最大字节数，默认 2GB |
+
+### 认证与限速
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `GITHUB_TOKEN` | 空 | 服务器 PAT，用户未提供 token 时对 `api.github.com` 请求自动携带 |
+| `TOKEN_WHITELIST` | 空 | Token 白名单（逗号分隔），匹配免限速 |
+| `IP_REQUEST_LIMIT` | `0` | 每 IP 每小时请求上限 |
+| `DOWNLOAD_RATE` | `0` | 单用户下载限速（字节/秒） |
+| `GLOBAL_RATE` | `0` | 全局限速（字节/秒），未认证用户共享 |
+| `BUFFER_SIZE` | `8388608` | 水位线缓冲区，默认 8MB |
+
+### API 限额
+
+代理对 GitHub API 的调用频率限制，防止触发限流。
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `API_SEARCH_HOURLY` | `1200` | 搜索 API |
+| `API_RELEASE_HOURLY` | `3333` | Release API |
+| `API_REPO_HOURLY` | `3333` | 仓库信息 API |
+| `API_OTHER_HOURLY` | `3333` | 其他 API |
+
+### 访问控制
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `ACCESS_PROXY` | 空 | 上游代理，如 `socks5://ip:port` |
+| `REPO_WHITELIST` | 空 | 仓库白名单（逗号分隔） |
+| `REPO_BLACKLIST` | 空 | 仓库黑名单（逗号分隔） |

@@ -1,0 +1,5 @@
+/* 配置表格：变量名和默认值不换行 */
+td:first-child,
+td:nth-child(2) {
+  white-space: nowrap;
+}

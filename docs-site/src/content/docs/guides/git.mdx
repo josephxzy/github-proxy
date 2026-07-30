@@ -1,0 +1,29 @@
+---
+title: Git 加速
+---
+
+## Clone / Fetch
+
+```bash
+git clone https://hub.example.com/https://github.com/user/repo.git
+git clone https://hub.example.com/user/repo.git
+```
+
+## Push
+
+将 PAT 嵌入 remote URL：
+
+```bash
+git remote set-url origin https://ghp_xxx@hub.example.com/https://github.com/user/repo.git
+git push
+```
+
+若 push 走直连、clone 走代理：
+
+```bash
+git config --global url.https://github.com/.pushInsteadOf https://hub.example.com/https://github.com/
+```
+
+## Windows 凭据弹窗
+
+git push 弹出凭据窗口时输入 GitHub 用户名 + PAT。首次认证后 GCM 缓存凭据，后续不再弹窗。代理自动从 `Authorization: Basic` 中提取 PAT。

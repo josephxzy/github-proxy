@@ -28,6 +28,12 @@ src/frontend/node_modules/
 src/frontend/dist/
 
 # =============================
+# 文档站
+# =============================
+docs-site/node_modules/
+docs-site/dist/
+
+# =============================
 # IDE / 编辑器
 # =============================
 .vscode/

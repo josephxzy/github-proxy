@@ -27,6 +27,8 @@ apiOtherHourly = 3333
 downloadBytesPerSec = 0
 # 全局限速（字节/秒），所有未认证用户共享，0=不限速
 globalBytesPerSec = 0
+# IP 请求频率限制（次/小时），白名单 token 豁免，0=不限
+ipRequestLimit = 0
 
 [access]
 # GitHub仓库白名单（支持通配符）

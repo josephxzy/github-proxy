@@ -1,0 +1,63 @@
+---
+title: 安装部署
+---
+
+## 二进制
+
+从 [Releases](https://github.com/josephxzy/github-proxy/releases) 下载对应平台二进制：
+
+```bash
+wget https://github.com/josephxzy/github-proxy/releases/latest/download/github-proxy-linux-amd64
+chmod +x github-proxy-linux-amd64
+```
+
+## 环境变量
+
+所有配置均可通过环境变量设置：
+
+```bash
+GITHUB_TOKEN=ghp_xxx ./github-proxy-linux-amd64
+```
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `SERVER_PORT` | 监听端口 | `5000` |
+| `GITHUB_TOKEN` | 服务器 PAT | 空 |
+| `TOKEN_WHITELIST` | Token 白名单 | 空 |
+| `DOWNLOAD_RATE` | 单用户限速 (B/s) | `0` |
+| `GLOBAL_RATE` | 全局限速 (B/s) | `0` |
+
+完整配置项见[配置参考](/configuration/reference/)。
+
+## 构建
+
+```bash
+# Linux / macOS
+./build.sh v1.2.0
+
+# Windows
+.\build.ps1 -Version v1.2.0
+```
+
+构建产物在 `build/` 目录。或手动：
+
+```bash
+cd src/frontend && npm install && npm run build
+cd src && CGO_ENABLED=0 go build -ldflags="-s -w" -o github-proxy .
+```
+
+## 反向代理
+
+生产环境前置 Nginx / Caddy，**必须**关闭压缩和缓冲：
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:5000;
+    gzip off;
+    brotli off;
+    zstd off;
+    proxy_buffering off;
+}
+```
+
+> 不关压缩 → Content-Length 丢失 → 下载无进度条。

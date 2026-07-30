@@ -117,7 +117,6 @@ func StripProxyQueryParams(rawURL string) string {
 	}
 	q := parsed.Query()
 	q.Del("token")
-	q.Del("fast")
 	parsed.RawQuery = q.Encode()
 	return parsed.String()
 }

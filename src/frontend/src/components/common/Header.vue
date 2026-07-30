@@ -2,11 +2,11 @@
   <header class="sticky top-0 z-50 bg-white/75 dark:bg-gray-900/75 backdrop-blur-md border-b border-gray-200/70 dark:border-gray-800 transition-colors duration-300">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-16">
-        <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2.5">
           <div
-            class="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 bg-gray-900 dark:bg-white shadow-sm">
+            class="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 bg-gray-900 dark:bg-white shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-              class="w-6 h-6 transition-colors duration-300 fill-white dark:fill-gray-900" aria-hidden="true">
+              class="w-[18px] h-[18px] transition-colors duration-300 fill-white dark:fill-gray-900" aria-hidden="true">
               <path
                 d="M7.75 11c-.69 0-1.25.56-1.25 1.25v1.5a1.25 1.25 0 1 0 2.5 0v-1.5C9 11.56 8.44 11 7.75 11zm1.27 4.5a.469.469 0 0 1 .48-.5h5a.47.47 0 0 1 .48.5c-.116 1.316-.759 2.5-2.98 2.5s-2.864-1.184-2.98-2.5zm7.23-4.5c-.69 0-1.25.56-1.25 1.25v1.5a1.25 1.25 0 1 0 2.5 0v-1.5c0-.69-.56-1.25-1.25-1.25z">
               </path>

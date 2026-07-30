@@ -100,16 +100,13 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 
 	// 断点续传与首次下载解耦设计：
 	//   - 客户端带 Range → 断点续传路径（跳过预检，透传 GitHub 的 CL）
-	//   - 快速模式 (fast=1) → 跳过预检，优先响应速度（无进度条）
 	//   - 普通模式 → Range 探测与实际下载并发执行（有进度条）
 	isRangeRequest := c.Request.Header.Get("Range") != ""
-	isFastMode := c.Query("fast") == "1"
 	var preflightSize int64
 	preflightCh := make(chan int64, 1)
 
-	// 对于非断点续传、非快速模式的 GET 请求，启动并发的 Range 预检
-	// 用于提前获取文件总大小，使浏览器能显示进度条
-	if !isRangeRequest && !isFastMode && c.Request.Method == "GET" {
+	// 对于非断点续传的 GET 请求，启动并发的 Range 预检
+	if !isRangeRequest && c.Request.Method == "GET" {
 		go func() {
 			preflightCh <- ghproxyservice.PrefetchContentLength(ctx, u, c.Request.Header)
 		}()
@@ -130,9 +127,9 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 		}
 	}()
 
-	// 等待并发预检结果（与实际下载请求并行，减少浏览器等待时间）
-	// 快速模式和断点续传模式跳过预检等待
-	if !isRangeRequest && !isFastMode && c.Request.Method == "GET" {
+	// 等待并发预检结果（与实际下载请求并行）
+	// 断点续传模式跳过预检等待
+	if !isRangeRequest && c.Request.Method == "GET" {
 		select {
 		case preflightSize = <-preflightCh:
 		case <-ctx.Done():
@@ -212,7 +209,8 @@ func getDownloadLimiter(c *gin.Context) *rateLimitedWriter {
 // 处理流程:
 //  1. 检测响应是否为 gzip 压缩
 //  2. 使用 ProcessSmart 解压→替换 URL→重新压缩（如需要）
-//  3. 内容变化时删除 CL/CE，改为 chunked 传输
+//  3. 响应体始终被整体替换为处理后的内容，因此无条件删除原 CL/CE，
+//     由 writeResponse 按处理后的大小重新设置 CL（为 0 时走 chunked）
 //  4. 调用 writeResponse 发送到客户端
 func handleScriptResponse(c *gin.Context, resp *http.Response, realHost string, latency int, redirectCount int) {
 	// 检测是否为 gzip 压缩
@@ -225,12 +223,11 @@ func handleScriptResponse(c *gin.Context, resp *http.Response, realHost string, 
 		return
 	}
 
-	// 如果内容发生了变化（URL 被替换），更新响应头
-	if processedSize > 0 {
-		resp.Header.Del("Content-Length")               // 内容长度已改变
-		resp.Header.Del("Content-Encoding")             // 编码方式可能已改变
-		resp.Header.Set("Transfer-Encoding", "chunked") // 改用分块传输
-	}
+	// 响应体已被整体替换，原始的 Content-Length / Content-Encoding 一律失效。
+	// 注意：不要手动设置 Transfer-Encoding 头，Go 服务端会根据是否设置
+	// Content-Length 自动决定分块传输，手动设置无效且可能产生冲突。
+	resp.Header.Del("Content-Length")
+	resp.Header.Del("Content-Encoding")
 
 	// 写入响应到客户端
 	writeResponse(c, resp, processedBody, processedSize, latency, redirectCount)
@@ -325,7 +322,12 @@ func writeResponse(c *gin.Context, resp *http.Response, body io.Reader, knownSiz
 	// 仅对非 206（非断点续传）响应设置 Content-Length
 	if knownSize > 0 && resp.StatusCode != http.StatusPartialContent {
 		c.Header("Content-Length", strconv.FormatInt(knownSize, 10))
-		c.Header("Cache-Control", "no-transform") // 防止中间节点修改内容
+		c.Header("Cache-Control", "no-transform")
+		// 删除从 GitHub 复制过来的 Transfer-Encoding 头：
+		// 设置了 Content-Length 后必须保证 TE 不再出现，
+		// 二者并存会让部分客户端无法判断响应边界（表现为无进度/下载失败）。
+		// 传输分帧由 Go 服务端根据 CL 自动管理，无需手动设置 TE。
+		c.Writer.Header().Del("Transfer-Encoding")
 	}
 
 	// 立即写入状态码和响应头

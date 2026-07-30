@@ -39,6 +39,7 @@ type AppConfig struct {
 		APIOtherHourly       int   `toml:"apiOtherHourly"`
 		DownloadBytesPerSec  int64 `toml:"downloadBytesPerSec"`  // 单用户下载限速（字节/秒），0=不限速
 		GlobalBytesPerSec    int64 `toml:"globalBytesPerSec"`    // 全局限速（字节/秒），0=不限速
+		IPRequestLimit       int   `toml:"ipRequestLimit"`       // IP 请求限流（次/小时），0=不限
 	} `toml:"rateLimit"`
 
 	// Access 访问控制配置
@@ -87,6 +88,7 @@ func DefaultConfig() *AppConfig {
 			APIOtherHourly       int   `toml:"apiOtherHourly"`
 			DownloadBytesPerSec  int64 `toml:"downloadBytesPerSec"`
 			GlobalBytesPerSec    int64 `toml:"globalBytesPerSec"`
+			IPRequestLimit       int   `toml:"ipRequestLimit"`
 		}{
 			APISearchHourly:     1200,
 			APIReleaseHourly:    3333,
@@ -94,6 +96,7 @@ func DefaultConfig() *AppConfig {
 			APIOtherHourly:      3333,
 			DownloadBytesPerSec: 0,
 			GlobalBytesPerSec:   0,
+			IPRequestLimit:      0,
 		},
 		Access: struct {
 			WhiteList []string `toml:"whiteList"`
@@ -240,6 +243,11 @@ func overrideFromEnv(cfg *AppConfig) {
 	if val := os.Getenv("GLOBAL_RATE"); val != "" {
 		if v, err := strconv.ParseInt(val, 10, 64); err == nil && v > 0 {
 			cfg.RateLimit.GlobalBytesPerSec = v
+		}
+	}
+	if val := os.Getenv("IP_REQUEST_LIMIT"); val != "" {
+		if v, err := strconv.Atoi(val); err == nil && v > 0 {
+			cfg.RateLimit.IPRequestLimit = v
 		}
 	}
 

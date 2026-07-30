@@ -37,36 +37,27 @@ func GetApplication() *service.Application {
 	return globalApplication
 }
 
-// GitHubProxyHandler GitHub 代理的主入口处理器
-// 所有经过此代理的 GitHub 请求都会进入这个函数
-//
-//  1. 路径标准化：去除前导斜杠
-//  2. 身份验证：如果配置了认证用户，则进行 Basic Auth 验证
-//  3. URL 规范化：检查并转换 URL 格式（如 ghproxy.com → github.com）
-//  4. 请求分发：根据 URL 类型转发到 API 或下载处理器
-//
-// 路由示例：
-//   - /https://github.com/xxx/yyy → 代理到 GitHub
-//   - /repo/user/project → 简写路径格式
-func GitHubProxyHandler(c *gin.Context) {
-	// 步骤1：标准化路径，去除前导 "/"
-	rawPath := normalizePath(c.Request.URL.RequestURI())
-
-	// 步骤2：统一提取 token（优先级：X-GitHub-Token 头 > ?token= 参数 > Authorization: Basic）
-	token := ghproxyservice.ExtractToken(c.Request, rawPath)
-	if token != "" {
-		c.Set("userToken", token)
+// TokenAuthMiddleware token 提取 + 白名单中间件。
+// 在所有路由之前执行，确保 downstream handler 和 IP 限流器
+// 都能通过 c.Get("authenticated") 获取状态。
+func TokenAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rawPath := strings.TrimLeft(c.Request.URL.RequestURI(), "/")
+		token := ghproxyservice.ExtractToken(c.Request, rawPath)
+		if token != "" {
+			c.Set("userToken", token)
+		}
+		c.Set("authenticated", globalApplication.TokenWhiteList.IsWhitelisted(token))
+		c.Next()
 	}
+}
+
+// GitHubProxyHandler GitHub 代理的主入口处理器
+func GitHubProxyHandler(c *gin.Context) {
+	rawPath := normalizePath(c.Request.URL.RequestURI())
 
 	// 剥离代理专用查询参数（token、fast），不发给 GitHub
 	rawPath = ghproxyservice.StripProxyQueryParams(rawPath)
-
-	// 步骤3：Token 白名单检查
-	authenticated := false
-	if token != "" {
-		authenticated = globalApplication.TokenWhiteList.IsWhitelisted(token)
-	}
-	c.Set("authenticated", authenticated)
 
 	// 步骤3：根据 URL 类型分流处理
 	// API 请求（api.github.com）不需要经过下载模块的 URL 验证

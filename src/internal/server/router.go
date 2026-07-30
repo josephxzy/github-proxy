@@ -40,6 +40,13 @@ func BuildRouter(cfg *RouterConfig) *gin.Engine {
 		router.Use(cfg.FrequencyLimiter.(gin.HandlerFunc))
 	}
 
+	// Token 提取 + 白名单（IP 限流器依赖 authenticated 标志）
+	router.Use(handlers.TokenAuthMiddleware())
+
+	// IP 请求频率限制（白名单 token 用户豁免）
+	ipLimiter := handlers.NewIPRateLimiter(cfg.AppConfig.RateLimit.IPRequestLimit)
+	router.Use(ipLimiter.Middleware())
+
 	registerHealthRoutes(router, cfg)
 	registerAPIRoutes(router, cfg)
 	registerStaticRoutes(router, cfg.AppConfig, cfg.StaticFS)

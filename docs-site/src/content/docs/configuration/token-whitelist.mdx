@@ -1,0 +1,14 @@
+---
+title: Token 白名单
+---
+
+白名单内的 token 免除下载限速和 IP 请求限制。
+
+```toml
+[tokenWhiteList]
+tokens = ["ghp_xxx", "ghp_yyy"]
+```
+
+或环境变量：`TOKEN_WHITELIST=ghp_xxx,ghp_yyy`
+
+代理从三种来源提取 token（`X-GitHub-Token` 头、`?token=` 参数、Git 嵌入凭据），与白名单比对。命中免限速。
