@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"io"
 	"sync"
 )
 
@@ -69,16 +70,16 @@ func (b *WaterlineBuffer) Write(data []byte) int {
 	return total
 }
 
-// Read 读取最多 len(p) 字节；无数据时阻塞，直到有数据或缓冲区关闭。
-// 缓冲区关闭且读空后返回 0（io.EOF 语义）。
-func (b *WaterlineBuffer) Read(p []byte) int {
+// Read reads up to len(p) bytes into p. Blocks until data is available or
+// the buffer is closed. Returns io.EOF when closed and fully drained.
+func (b *WaterlineBuffer) Read(p []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	for b.count == 0 && !b.closed {
 		b.cond.Wait()
 	}
 	if b.count == 0 {
-		return 0
+		return 0, io.EOF
 	}
 	n := len(p)
 	if n > b.count {
@@ -93,11 +94,17 @@ func (b *WaterlineBuffer) Read(p []byte) int {
 	if b.usage() < 0.2 && b.paused {
 		b.paused = false
 	}
-	b.cond.Broadcast() // 唤醒可能阻塞在"缓冲区满"的生产者
-	return n
+	b.cond.Broadcast()
+	return n, nil
 }
 
 // Close 关闭缓冲区，唤醒所有等待的 reader/writer。
+func (b *WaterlineBuffer) IsClosed() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.closed
+}
+
 func (b *WaterlineBuffer) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()

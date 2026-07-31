@@ -22,29 +22,17 @@ import (
 // 处理流程:
 //
 //  1. 创建 HTTP 请求，复制客户端请求头
-//  2. 快速模式检测：主分支 zip 等小文件可跳过预检以提升响应速度
-//  3. 断点续传检测：根据客户端 Range 头决定是否跳过预检
-//  4. 发送请求到 GitHub（跟随重定向）
-//  5. 安全检查：内容类型过滤 + 文件大小限制
-//  6. 根据资源类型分发:
+//  2. 断点续传检测：根据客户端 Range 头决定是否跳过预检
+//  3. 发送请求到 GitHub（跟随重定向）
+//  4. 安全检查：内容类型过滤 + 文件大小限制
+//  5. 根据资源类型分发:
 //     - 脚本文件 (.sh/.ps1) → handleScriptResponse（URL 替换处理）
 //     - 普通文件          → handleNormalResponse（直接转发）
-//
-// 双模式下载设计：
-//
-//	快速模式 (fast=true):
-//	  → 跳过 Range 预检 → 无进度条但响应更快
-//	  → 适用场景：主分支 zip、小文件下载
-//
-//	标准模式 (fast=false):
-//	  → 并发 Range 预检 + 实际下载
-//	  → 预检结果用于设置 Content-Length=总大小 → 浏览器显示进度条
-//	  → 适用场景：大文件 Release 下载、需要进度反馈的场景
 //
 // 断点续传与首次下载的解耦设计：
 //
 //	客户端无 Range (首次下载):
-//	  → 非快速模式：并发发起 Range 探测 + 实际下载请求
+//	  → 并发发起 Range 探测 + 实际下载请求
 //	  → 探测结果用于设置 Content-Length=总大小 → 浏览器显示进度条
 //
 //	客户端有 Range (断点续传):
@@ -107,8 +95,12 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 
 	// 对于非断点续传的 GET 请求，启动并发的 Range 预检
 	if !isRangeRequest && c.Request.Method == "GET" {
+		preflightHeaders := c.Request.Header.Clone()
+		if userToken, ok := c.Get("userToken"); ok {
+			preflightHeaders.Set("Authorization", "token "+userToken.(string))
+		}
 		go func() {
-			preflightCh <- ghproxyservice.PrefetchContentLength(ctx, u, c.Request.Header)
+			preflightCh <- ghproxyservice.PrefetchContentLength(ctx, u, preflightHeaders)
 		}()
 	}
 
@@ -328,6 +320,15 @@ func writeResponse(c *gin.Context, resp *http.Response, body io.Reader, knownSiz
 		// 二者并存会让部分客户端无法判断响应边界（表现为无进度/下载失败）。
 		// 传输分帧由 Go 服务端根据 CL 自动管理，无需手动设置 TE。
 		c.Writer.Header().Del("Transfer-Encoding")
+	}
+
+	// 对于无 Content-Length 的 chunked 响应，使用 LimitReader 限制实际传输大小
+	// 防止超大文件通过 chunked 传输绕过文件大小检查
+	if knownSize == 0 && resp.StatusCode != http.StatusPartialContent {
+		cfg := config.GetConfig()
+		if cfg.Server.FileSize > 0 {
+			body = io.LimitReader(body, cfg.Server.FileSize)
+		}
 	}
 
 	// 立即写入状态码和响应头

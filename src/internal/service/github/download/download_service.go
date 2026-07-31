@@ -68,11 +68,11 @@ func (s *DownloadService) Execute(req *DownloadRequest) *DownloadResult {
 		result.Latency = latency
 		return result
 	}
-	defer httpResp.Body.Close()
 
 	result.Latency = int(time.Since(startTime).Milliseconds())
 
 	if !s.validateResponse(httpResp, req, result) {
+		httpResp.Body.Close()
 		return result
 	}
 

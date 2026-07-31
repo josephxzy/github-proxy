@@ -32,7 +32,7 @@ import { Card, CardGrid } from '@astrojs/starlight/components'
     [查看用法](/guides/git/)
   </Card>
   <Card title="两层限速" icon="speedometer">
-    per-user 漏桶 + global 令牌桶，白名单免限速。
+    单流漏桶 + global 令牌桶，白名单免限速。
     [设计文档](/design/rate-limit/)
   </Card>
   <Card title="水位线反压" icon="pulse">
@@ -57,7 +57,7 @@ import { Card, CardGrid } from '@astrojs/starlight/components'
 - **Git 加速** — Clone / Fetch / Push，短路径支持
 - **私有仓库** — 前端设置 Token，代理透传认证
 - **进度条** — Range 预检 + Content-Length，断点续传
-- **双层限速** — per-user + global，白名单免限速
+- **双层限速** — 单流 + global，白名单免限速
 - **IP 限流** — 每 IP 每小时请求上限，防滥用
 - **智能反压** — 水位线缓冲区，TCP 窗口永不归零
 - **Token 自动重试** — 用户 token 失效时回退服务器 token

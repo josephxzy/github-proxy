@@ -83,8 +83,8 @@ func (g *globalRateLimiter) wait(n int) {
 	now := time.Now()
 	elapsed := now.Sub(g.lastTime).Seconds()
 	g.tokens += elapsed * g.rate
-	if g.tokens > g.rate {
-		g.tokens = g.rate
+	if g.tokens > g.rate/10 {
+		g.tokens = g.rate / 10
 	}
 	g.lastTime = now
 

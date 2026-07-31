@@ -56,7 +56,7 @@ func TokenAuthMiddleware() gin.HandlerFunc {
 func GitHubProxyHandler(c *gin.Context) {
 	rawPath := normalizePath(c.Request.URL.RequestURI())
 
-	// 剥离代理专用查询参数（token、fast），不发给 GitHub
+	// 剥离代理专用查询参数（token），不发给 GitHub
 	rawPath = ghproxyservice.StripProxyQueryParams(rawPath)
 
 	// 步骤3：根据 URL 类型分流处理

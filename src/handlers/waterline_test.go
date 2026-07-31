@@ -51,8 +51,8 @@ func TestWaterlineBufferNoDataLossUnderBackpressure(t *testing.T) {
 	dst := make([]byte, 0, totalSize)
 	out := make([]byte, 7*1024)
 	for {
-		n := wb.Read(out)
-		if n == 0 {
+		n, err := wb.Read(out)
+		if err == io.EOF {
 			break
 		}
 		dst = append(dst, out[:n]...)
@@ -97,7 +97,7 @@ func TestWaterlineBufferBlockingWrite(t *testing.T) {
 
 	// 消费者读出 10 字节，生产者应完成写入
 	p := make([]byte, 10)
-	if n := wb.Read(p); n != 10 {
+	if n, _ := wb.Read(p); n != 10 {
 		t.Fatalf("Read 应返回 10, 实际 %d", n)
 	}
 	select {
@@ -110,30 +110,80 @@ func TestWaterlineBufferBlockingWrite(t *testing.T) {
 	}
 }
 
-// TestWaterlineBufferCloseUnblocksReader 验证 Close 后读空返回 0。
+// TestWaterlineBufferCloseUnblocksReader 验证 Close 后读空返回 io.EOF。
 func TestWaterlineBufferCloseUnblocksReader(t *testing.T) {
 	wb := newWaterlineBuffer(1024)
 	wb.Write([]byte("hello"))
 	wb.Close()
 
-	got, err := io.ReadAll(readerFunc(func(p []byte) (int, error) {
-		n := wb.Read(p)
-		if n == 0 {
-			return 0, io.EOF
-		}
-		return n, nil
-	}))
+	got, err := io.ReadAll(wb)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(got) != "hello" {
 		t.Fatalf("Close 前应读出全部已缓冲数据, 实际 %q", got)
 	}
-	if n := wb.Read(make([]byte, 1)); n != 0 {
-		t.Fatal("Close 且读空后 Read 应返回 0")
+	if n, err := wb.Read(make([]byte, 1)); n != 0 || err != io.EOF {
+		t.Fatalf("Close 且读空后 Read 应返回 (0, io.EOF), 实际 (%d, %v)", n, err)
 	}
 }
 
-type readerFunc func(p []byte) (int, error)
+// TestWaterlineBufferCloseUnblocksBlockedReader 验证消费者阻塞在 Read 时，
+// 外部调用 Close 能立刻将其唤醒（模拟客户端断开）。
+func TestWaterlineBufferCloseUnblocksBlockedReader(t *testing.T) {
+	wb := newWaterlineBuffer(1024)
 
-func (f readerFunc) Read(p []byte) (int, error) { return f(p) }
+	// 消费者：阻塞在 Read 上（缓冲区为空）
+	done := make(chan int, 1)
+	go func() {
+		n, _ := wb.Read(make([]byte, 1024))
+		done <- n
+	}()
+
+	// 确保消费者已经进入 Read
+	time.Sleep(10 * time.Millisecond)
+
+	// 模拟客户端断开：外部调用 Close 唤醒消费者
+	wb.Close()
+
+	select {
+	case n := <-done:
+		if n != 0 {
+			t.Fatalf("Close 后 Read 应返回 0, 实际 %d", n)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Close 未能在 1s 内唤醒阻塞的 Read")
+	}
+}
+
+// TestWaterlineBufferCloseUnblocksBlockedWriter 验证生产者阻塞在 Write（缓冲区满）时，
+// 外部调用 Close 能立刻将其唤醒。
+func TestWaterlineBufferCloseUnblocksBlockedWriter(t *testing.T) {
+	wb := newWaterlineBuffer(100)
+
+	// 先写满缓冲区
+	if n := wb.Write(make([]byte, 100)); n != 100 {
+		t.Fatalf("首次写入应为 100, 实际 %d", n)
+	}
+
+	// 生产者：再次写入会阻塞（缓冲区满）
+	done := make(chan int, 1)
+	go func() {
+		done <- wb.Write(make([]byte, 10))
+	}()
+
+	// 确保生产者已经阻塞
+	time.Sleep(10 * time.Millisecond)
+
+	// 外部调用 Close 唤醒阻塞的 Write
+	wb.Close()
+
+	select {
+	case n := <-done:
+		if n == 10 {
+			t.Fatal("Close 后满缓冲区的 Write 不应完整写入")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Close 未能在 1s 内唤醒阻塞的 Write")
+	}
+}

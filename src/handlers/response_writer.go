@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bufio"
 	"io"
 	"net/http"
 
@@ -11,18 +10,8 @@ import (
 )
 
 const (
-	streamBufferSize = 128 * 1024 // 流式传输缓冲区: 128KB
-	flushThreshold   = 64 * 1024  // 每 64KB 刷新一次
+	flushThreshold = 64 * 1024 // 每 64KB 刷新一次
 )
-
-func streamToClient(c *gin.Context, body io.Reader, w io.Writer) int64 {
-	buf := bufio.NewReaderSize(body, streamBufferSize)
-	written, _ := io.Copy(w, buf)
-	if fw, ok := w.(*flushingWriter); ok {
-		fw.Flush()
-	}
-	return written
-}
 
 // streamToClientWithWaterline 带水位线反压的流式传输。
 // 生产端从 GitHub 全速读取，受水位线暂停控制。
@@ -37,14 +26,29 @@ func streamToClientWithWaterline(c *gin.Context, body io.Reader, rlw *rateLimite
 
 	var written int64
 	producerDone := make(chan struct{})
+	ctx := c.Request.Context()
 
-	// 生产者：从 GitHub 读取 → 写入水位线缓冲区
+	// 客户端断开监听：一旦 ctx 取消，立刻关闭缓冲区，
+	// 把阻塞在 Read 上的消费者和阻塞在 WaitUnpaused/Read 上的生产者同时唤醒。
 	go func() {
-		defer wb.Close()
+		<-ctx.Done()
+		wb.Close()
+	}()
+
+	go func() {
 		defer close(producerDone)
+		defer wb.Close()
 		chunk := make([]byte, 32*1024)
 		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 			wb.WaitUnpaused()
+			if wb.IsClosed() {
+				return
+			}
 			n, err := body.Read(chunk)
 			if n > 0 {
 				wb.Write(chunk[:n])
@@ -55,27 +59,43 @@ func streamToClientWithWaterline(c *gin.Context, body io.Reader, rlw *rateLimite
 		}
 	}()
 
-	// 消费者：从缓冲区读取 → 限速写入客户端
 	out := make([]byte, 32*1024)
+	defer wb.Close()
 	for {
-		n := wb.Read(out)
+		n, rerr := wb.Read(out)
 		if n > 0 {
-			wn, _ := rlw.Write(out[:n])
+			wn, err := rlw.Write(out[:n])
+			if err != nil {
+				written += int64(wn)
+				return written
+			}
 			written += int64(wn)
 		}
 		select {
 		case <-producerDone:
 			for {
-				n := wb.Read(out)
-				if n == 0 {
+				n, rerr := wb.Read(out)
+				if n > 0 {
+					wn, err := rlw.Write(out[:n])
+					if err != nil {
+						written += int64(wn)
+						return written
+					}
+					written += int64(wn)
+				}
+				if rerr == io.EOF {
 					break
 				}
-				wn, _ := rlw.Write(out[:n])
-				written += int64(wn)
 			}
 			rlw.Flush()
 			return written
+		case <-ctx.Done():
+			return written
 		default:
+		}
+		if rerr == io.EOF {
+			rlw.Flush()
+			return written
 		}
 	}
 }

@@ -10,9 +10,9 @@ title: 限速与稳定性设计
 用户A (限速 2MB/s) ──┐
 用户B (限速 5MB/s) ──┤
 用户C (无限制)     ──┼──→ [Go 程序] ──→ [内核 SO_RCVBUF 4MB] ──→ GitHub
-                     │    ▲
-                per-user  │
-              token bucket│
+                      │    ▲
+                单流  │
+                漏桶    │
                      ┌────┴────┐
                      │ global  │
                      │ 令牌桶   │
@@ -27,30 +27,47 @@ title: 限速与稳定性设计
 
 ```go
 func (w *rateLimitedWriter) Write(p []byte) (int, error) {
-    if w.user != nil   { w.user.wait(len(p)) }   // ① per-user 漏桶
+    if w.user != nil   { w.user.wait(len(p)) }   // ① 单流漏桶
     if w.global != nil { w.global.wait(len(p)) } // ② global 令牌桶
     return w.writer.Write(p)
 }
 ```
 
-| | per-user 限速器 | global 限速器 |
+| | 单流限速器 | global 限速器 |
 |:---|:---|:---|
 | 算法 | 漏桶（独立，每请求一个） | 共享令牌桶（全局单例） |
-| 作用 | 限制单个未认证用户的峰值 | 限制所有未认证用户的总带宽 |
+| 作用 | 限制单个下载流的峰值带宽 | 限制所有未认证用户的总带宽 |
 | 资源 | 每个下载流独占一个 | 所有下载流竞争同一个令牌池 |
 | 白名单 | 跳过 | 跳过 |
 
+> **注意**：单流限速器按请求独立创建（每连接一个）。同名用户 N 个并发下载将获得 N × `downloadBytesPerSec` 的带宽。全局令牌桶提供真正的跨用户总带宽上限。
+
 ### 为什么不是简单的延迟相加？
 
-per-user 漏桶执行 `wait()` 期间，global 令牌桶在后台持续累积令牌。per-user 延迟结束后，global 通常已有足够令牌，无需额外等待。只有全局带宽真正被打满时，global 令牌池才会耗尽。
+单流漏桶执行 `wait()` 期间，global 令牌桶在后台持续累积令牌。单流延迟结束后，global 通常已有足够令牌，无需额外等待。只有全局带宽真正被打满时，global 令牌池才会耗尽。
 
 ```
-场景1：1 个用户，per-user=5MB/s，global=50MB/s
-  user.wait(32KB) = 0.006s → global 令牌充足 → 速率 5MB/s ✓
+场景1：1 个用户，单流=5MB/s，global=50MB/s
+  wait(32KB) = 0.006s → global 令牌充足 → 速率 5MB/s ✓
 
-场景2：20 个用户，per-user=5MB/s，global=50MB/s
+场景2：20 个用户各 1 流，单流=5MB/s，global=50MB/s
   每人 global.wait 追加延迟 → 有效速率 ≈ 2.5MB/s × 20 = 50MB/s ✓
+
+场景3：1 个用户 4 个并发下载，单流=5MB/s（无 global 限制）
+  4 流各自独立限速 → 总速率最高可达 20MB/s
 ```
+
+### 暂停恢复行为
+
+单流漏桶**没有空闲重置逻辑**。暂停再久，`nextTime` 始终保持着上次写入时设置的值：
+
+```
+暂停 10s → nextTime 停留在 10s 前 →
+恢复后首 chunk：sleep 为负 → 不 sleep，立即写出（仅 32KB 突发）
+后续所有 chunk：sleep ≈ d × (已累积 chunk 数) → 严格按 rate 限速
+```
+
+> 删除了一秒空闲重置（旧代码 `if nextTime.Before(now.Add(-1s)) { nextTime = now }`），原因：重置导致暂停期间所有积压数据在恢复瞬间涌出，等同未限速。
 
 ## 水位线反压
 
@@ -182,11 +199,12 @@ func (b *WaterlineBuffer) Write(data []byte) int {
     if b.usage() >= 0.8 { b.paused = true }
 }
 
-// Read — 关闭且读空时返回 0（EOF 语义）
-func (b *WaterlineBuffer) Read(p []byte) int {
+// Read — 关闭且读空时返回 io.EOF
+func (b *WaterlineBuffer) Read(p []byte) (int, error) {
     for b.count == 0 && !b.closed { b.cond.Wait() }
-    if b.count == 0 { return 0 }
+    if b.count == 0 { return 0, io.EOF }
     // 读取，指针取模环绕
+    return n, nil
 }
 ```
 
@@ -196,7 +214,7 @@ func (b *WaterlineBuffer) Read(p []byte) int {
 
 ```
 resp.Body ──→ producer goroutine ──→ WaterlineBuffer ──→ rateLimitedWriter ──→ 客户端
-  (GitHub)     全速读取，受水位     80%/20% 暂停/恢复     per-user + global
+  (GitHub)     全速读取，受水位     80%/20% 暂停/恢复     单流 + global
                线暂停控制                                  
 ```
 
@@ -204,7 +222,7 @@ resp.Body ──→ producer goroutine ──→ WaterlineBuffer ──→ rateL
 |:---|:---|
 | `handlers/waterline.go` | 真环形缓冲区，80%/20% 暂停/恢复 |
 | `handlers/response_writer.go` | producer/consumer 双 goroutine |
-| `handlers/rate_limit.go` | per-user 漏桶 + global 共享令牌桶 |
+| `handlers/rate_limit.go` | 单流漏桶 + global 共享令牌桶 |
 | `pkg/network/http_client_*.go` | `SO_RCVBUF = 4MB`（每连接） |
 
 ## 配置

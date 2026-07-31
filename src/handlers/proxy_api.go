@@ -107,6 +107,7 @@ func proxyAPIRequest(c *gin.Context, u string, redirectCount int) {
 			}
 		}
 		req2.Header.Del("Host")
+		req2.Header.Del("Authorization")
 		ghproxyservice.ApplyGitHubToken(req2, u)
 		resp, err = network.GetGlobalHTTPClient().Do(req2)
 		if err != nil {
@@ -118,7 +119,6 @@ func proxyAPIRequest(c *gin.Context, u string, redirectCount int) {
 		}
 		c.Header("X-Token-Status", "invalid")
 	}
-	defer resp.Body.Close()
 	defer resp.Body.Close()
 
 	// 处理重定向：GitHub 可能返回 301/302 重定向
