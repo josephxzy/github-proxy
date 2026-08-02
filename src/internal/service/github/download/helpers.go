@@ -22,6 +22,7 @@ var githubExps = []*regexp.Regexp{
 	regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/(?:info|git-).*`),
 	regexp.MustCompile(`^https?://raw\.github(?:usercontent|github)\.com/([^/]+)/([^/]+)/.+?/.+`),
 	regexp.MustCompile(`^https?://gist\.(?:githubusercontent|github)\.com/([^/]+)/([^/]+).*`),
+	regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)$`),
 }
 
 func MatchURL(u string) []string {
@@ -53,6 +54,12 @@ func IsReleaseAPIURL(u string) bool {
 
 func IsGitHubAPIURL(u string) bool {
 	return strings.Contains(u, "api.github.com")
+}
+
+var allowedGitHubPageExp = regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)$`)
+
+func IsBareRepoURL(u string) bool {
+	return allowedGitHubPageExp.MatchString(u)
 }
 
 func ApplyGitHubToken(req *http.Request, url string) {

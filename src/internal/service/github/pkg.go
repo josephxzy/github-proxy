@@ -92,6 +92,10 @@ func IsShortGitHubPath(path string) bool {
 	return download.IsShortGitHubPath(path)
 }
 
+func IsBareRepoURL(u string) bool {
+	return download.IsBareRepoURL(u)
+}
+
 const MaxShellSize = download.MaxShellSize
 
 func GetDefaultBranch(owner, repo string) (string, error) {
