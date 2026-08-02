@@ -30,12 +30,18 @@
                   </svg>
                 </button>
 
-                <div class="flex items-center gap-3 mb-4">
-                  <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 ring-1 ring-blue-100 dark:ring-blue-500/20 flex items-center justify-center flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600 dark:text-blue-400">
-                      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+                <div class="flex items-center gap-3 mb-4 pr-9">
+                  <button
+                    @click="openTokenHelp"
+                    class="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-500/10 ring-1 ring-amber-100 dark:ring-amber-500/20 flex items-center justify-center flex-shrink-0 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors"
+                    title="获取 GitHub Token 与风险提示"
+                    aria-label="Token 帮助与风险提示">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600 dark:text-amber-400">
+                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                      <path d="M12 9v4"></path>
+                      <path d="M12 17h.01"></path>
                     </svg>
-                  </div>
+                  </button>
                   <h3 class="text-lg font-semibold text-gray-900 dark:text-white">设置 GitHub Token</h3>
                 </div>
 
@@ -60,6 +66,10 @@
 
                 <p v-if="tokenError" class="mt-2 text-xs text-red-500">{{ tokenError }}</p>
 
+                <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  Token 将经由代理上传，可能暴露在后台日志中；访问私有仓库或推送代码请谨慎，点击左侧 ⚠ 图标查看获取方式与风险提示。
+                </p>
+
                 <div class="flex items-center gap-2 mt-5">
                   <button
                     @click="handleTokenClear"
@@ -71,6 +81,63 @@
                     :disabled="!!tokenError"
                     class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors">
                     确认
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Teleport>
+
+          <!-- Token 获取指引与风险提示弹窗 -->
+          <Teleport to="body">
+            <div v-if="showTokenHelpModal" class="fixed inset-0 z-[10003] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" @click.self="closeTokenHelp">
+              <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl ring-1 ring-gray-900/5 dark:ring-white/10 w-full max-w-xl mx-4 p-6 relative animate-scale-in max-h-[82vh] overflow-y-auto">
+                <button @click="closeTokenHelp" class="absolute top-3 right-3 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 ring-1 ring-amber-100 dark:ring-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600 dark:text-amber-400">
+                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                      <path d="M12 9v4"></path>
+                      <path d="M12 17h.01"></path>
+                    </svg>
+                  </div>
+                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">如何获取 GitHub Token</h3>
+                </div>
+
+                <div class="mb-4">
+                  <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">获取方式</h4>
+                  <ol class="text-sm text-gray-600 dark:text-gray-300 list-decimal list-inside space-y-1.5 leading-relaxed">
+                    <li>登录 GitHub，点击右上角头像，进入 <strong>Settings</strong></li>
+                    <li>进入 <strong>Developer settings</strong> → <strong>Personal access tokens</strong></li>
+                    <li>选择 <strong>Tokens (classic)</strong> 或 <strong>Fine-grained tokens</strong>，点击 <strong>Generate new token</strong></li>
+                    <li>勾选所需权限：访问私有仓库选 <strong>repo</strong>；推送代码需 <strong>contents:write</strong> 等</li>
+                    <li>生成后立即复制并妥善保存（Token 仅显示一次）</li>
+                  </ol>
+                </div>
+
+                <div class="mb-4">
+                  <h4 class="text-sm font-semibold text-amber-600 dark:text-amber-400 mb-2">风险提示</h4>
+                  <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                    Token 会经由本代理服务器上传，可能暴露在后台日志中。如需访问私有仓库或推送代码，
+                    建议<strong>自行部署本服务</strong>；否则，本服务仅建议用于公开文件的加速下载。
+                  </p>
+                </div>
+
+                <div class="mb-2">
+                  <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">临时解决方案</h4>
+                  <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                    如担心 Token 泄露，可随时到 GitHub → <strong>Settings → Developer settings → Personal access tokens</strong>
+                    删除（吊销）对应 Token；删除后立即失效，之后需要时再重新生成即可。
+                  </p>
+                </div>
+
+                <div class="flex justify-end mt-5">
+                  <button @click="closeTokenHelp" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors">
+                    知道了
                   </button>
                 </div>
               </div>
@@ -149,6 +216,15 @@ const showTokenModal = ref(false)
 const tokenVisible = ref(false)
 const tokenDraft = ref(token.value)
 const tokenError = ref('')
+
+// Token 获取指引与风险提示弹窗
+const showTokenHelpModal = ref(false)
+const openTokenHelp = () => {
+  showTokenHelpModal.value = true
+}
+const closeTokenHelp = () => {
+  showTokenHelpModal.value = false
+}
 
 const proxyHost = window.location.origin
 

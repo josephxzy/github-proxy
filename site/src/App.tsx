@@ -102,14 +102,31 @@ function App({ initialPath }: AppProps) {
   const route = parseRoute(pathname);
 
   return (
-    <main>
-      <SiteNav page={route.page} />
-      {route.page === "docs" ? (
-        <DocsPage docId={route.docId} />
-      ) : (
-        <HomePage />
-      )}
-    </main>
+    <>
+      <main>
+        <SiteNav page={route.page} />
+        {route.page === "docs" ? (
+          <DocsPage docId={route.docId} />
+        ) : (
+          <HomePage />
+        )}
+      </main>
+      <SiteFooter />
+    </>
+  );
+}
+
+// SiteFooter 页脚：声明文档站的样式借鉴来源。
+function SiteFooter() {
+  return (
+    <footer className="site-footer">
+      <p>
+        文档站样式借鉴自{" "}
+        <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant">
+          AI-Novel-Writing-Assistant
+        </a>
+      </p>
+    </footer>
   );
 }
 

@@ -75,6 +75,23 @@ p {
   z-index: 30;
 }
 
+.site-footer {
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  padding: 22px 40px 30px;
+  text-align: center;
+}
+
+.site-footer a {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
+}
+
 .brand,
 .nav-links,
 .hero-actions,
