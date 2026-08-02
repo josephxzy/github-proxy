@@ -10,7 +10,11 @@ import (
 	"github-proxy/config"
 )
 
-var shortGitHubPathExp = regexp.MustCompile(`^[^/\.]+/[^/]+(?:/(?:releases|archive|blob|raw|info|git-)/.*)?$`)
+// 短路径（user/repo/...）匹配规则，与 githubExps 的全 URL 规则保持一致：
+//   - releases|archive|blob|raw|info 要求后面跟 "/"（如 /info/refs）
+//   - git- 后面不要求 "/"，以支持 git 智能 HTTP 端点
+//     /git-upload-pack、/git-receive-pack（短链接 git clone/push 的 POST 请求）
+var shortGitHubPathExp = regexp.MustCompile(`^[^/\.]+/[^/]+(?:/(?:releases|archive|blob|raw|info)/.*|/git-.*)?$`)
 
 func IsShortGitHubPath(path string) bool {
 	return shortGitHubPathExp.MatchString(path)
