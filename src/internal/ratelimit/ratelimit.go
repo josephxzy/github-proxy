@@ -1,4 +1,11 @@
-package handlers
+// Package ratelimit 提供带宽限速基础设施：
+//
+//	UserLimiter  单用户漏桶限速器（按字节计时的顺序等待）
+//	GlobalLimiter 全局共享令牌桶限速器（所有未认证用户竞争同一令牌池）
+//	Writer       组合两者并写入底层 io.Writer 的限速写包装器
+//
+// 与 handlers 包解耦：本包不依赖 gin，仅依赖配置。
+package ratelimit
 
 import (
 	"io"
@@ -10,74 +17,74 @@ import (
 )
 
 var (
-	globalLimiter     *globalRateLimiter
+	globalLimiter     *GlobalLimiter
 	globalLimiterOnce sync.Once
 )
 
 // initGlobalLimiter 根据当前配置初始化全局限速器（只执行一次）。
-// 使用 sync.Once 保证并发安全，首次调用 getGlobalLimiter 时触发。
+// 使用 sync.Once 保证并发安全，首次调用 GetGlobalLimiter 时触发。
 func initGlobalLimiter() {
 	cfg := config.GetConfig()
-	globalLimiter = newGlobalRateLimiter(cfg.RateLimit.GlobalBytesPerSec)
+	globalLimiter = NewGlobalLimiter(cfg.RateLimit.GlobalBytesPerSec)
 }
 
-// getGlobalLimiter 获取全局限速器实例（懒初始化，线程安全）。
-func getGlobalLimiter() *globalRateLimiter {
+// GetGlobalLimiter 获取全局限速器实例（懒初始化，线程安全）。
+func GetGlobalLimiter() *GlobalLimiter {
 	globalLimiterOnce.Do(initGlobalLimiter)
 	return globalLimiter
 }
 
-// rateLimiter 单用户漏桶限速器（独立，每请求一个）。
+// UserLimiter 单用户漏桶限速器（独立，每请求一个）。
 // 按字节计算等待时间，控制单个未认证用户的下载带宽。
 // bytesPerSec<=0 时创建空限速器（perByte=0，wait 直接返回，不限速）。
-type rateLimiter struct {
+type UserLimiter struct {
 	perByte  time.Duration
 	mu       sync.Mutex
 	nextTime time.Time
 }
 
-// newRateLimiter 创建单用户限速器。
+// NewUserLimiter 创建单用户限速器。
 // bytesPerSec<=0 表示不限速。
-func newRateLimiter(bytesPerSec int64) *rateLimiter {
+func NewUserLimiter(bytesPerSec int64) *UserLimiter {
 	if bytesPerSec <= 0 {
-		return &rateLimiter{}
+		return &UserLimiter{}
 	}
-	return &rateLimiter{
+	return &UserLimiter{
 		perByte: time.Second / time.Duration(bytesPerSec),
 	}
 }
 
 // wait 阻塞 n 字节所需的限速等待时间。
 // 采用漏桶算法：每字节固定间隔 perByte，多请求之间按 nextTime 累积排队。
-func (r *rateLimiter) wait(n int) {
-	if r.perByte == 0 {
+func (l *UserLimiter) wait(n int) {
+	if l.perByte == 0 {
 		return
 	}
-	d := time.Duration(n) * r.perByte
+	d := time.Duration(n) * l.perByte
 
-	r.mu.Lock()
+	l.mu.Lock()
 	now := time.Now()
-	sleep := r.nextTime.Sub(now) + d
-	r.nextTime = now.Add(d)
-	r.mu.Unlock()
+	sleep := l.nextTime.Sub(now) + d
+	l.nextTime = now.Add(d)
+	l.mu.Unlock()
 
 	if sleep > 0 {
 		time.Sleep(sleep)
 	}
 }
 
-// globalRateLimiter 共享令牌桶，所有未认证用户竞争同一个令牌池。
+// GlobalLimiter 共享令牌桶，所有未认证用户竞争同一个令牌池。
 // 与 per-user 限速器独立工作，不产生延迟叠加。
-type globalRateLimiter struct {
+type GlobalLimiter struct {
 	mu       sync.Mutex
 	rate     float64
 	tokens   float64
 	lastTime time.Time
 }
 
-// newGlobalRateLimiter 创建全局限速器（令牌桶，容量为 1/10 秒的令牌量）。
-func newGlobalRateLimiter(bytesPerSec int64) *globalRateLimiter {
-	return &globalRateLimiter{
+// NewGlobalLimiter 创建全局限速器（令牌桶，容量为 1/10 秒的令牌量）。
+func NewGlobalLimiter(bytesPerSec int64) *GlobalLimiter {
+	return &GlobalLimiter{
 		rate:     float64(bytesPerSec),
 		tokens:   float64(bytesPerSec),
 		lastTime: time.Now(),
@@ -87,7 +94,7 @@ func newGlobalRateLimiter(bytesPerSec int64) *globalRateLimiter {
 // wait 阻塞 n 字节所需的令牌等待时间。
 // 令牌桶按时间速率补充令牌，桶容量限制为 1/10 秒的令牌量（突发缓冲）。
 // 注意：与 per-user 限速器独立工作，全局限速不产生延迟叠加。
-func (g *globalRateLimiter) wait(n int) {
+func (g *GlobalLimiter) wait(n int) {
 	if g.rate == 0 {
 		return
 	}
@@ -119,17 +126,22 @@ func (g *globalRateLimiter) wait(n int) {
 	}
 }
 
-// rateLimitedWriter 组合单用户与全局限速的写包装器。
+// Writer 组合单用户与全局限速的写包装器。
 // writer 为实际写入对象（通常是带 Flush 的 flushingWriter）。
 // user/global 为 nil 时跳过对应的限速逻辑（如白名单用户 user 为 nil）。
-type rateLimitedWriter struct {
+type Writer struct {
 	writer io.Writer
-	user   *rateLimiter
-	global *globalRateLimiter
+	user   *UserLimiter
+	global *GlobalLimiter
+}
+
+// NewWriter 创建限速写包装器。
+func NewWriter(w io.Writer, user *UserLimiter, global *GlobalLimiter) *Writer {
+	return &Writer{writer: w, user: user, global: global}
 }
 
 // Write 先按字节数等待限速，再写入底层 writer。
-func (w *rateLimitedWriter) Write(p []byte) (int, error) {
+func (w *Writer) Write(p []byte) (int, error) {
 	n := len(p)
 	if w.user != nil {
 		w.user.wait(n)
@@ -141,7 +153,7 @@ func (w *rateLimitedWriter) Write(p []byte) (int, error) {
 }
 
 // Flush 刷新底层 writer（若其支持 Flush）。
-func (w *rateLimitedWriter) Flush() {
+func (w *Writer) Flush() {
 	if fw, ok := w.writer.(interface{ Flush() }); ok {
 		fw.Flush()
 	}

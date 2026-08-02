@@ -1,4 +1,4 @@
-package handlers
+package waterline
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ func TestWaterlineBufferNoDataLossUnderBackpressure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	wb := newWaterlineBuffer(capacity)
+	wb := NewWaterlineBuffer(capacity)
 
 	// 生产者：全速写入（模拟从 GitHub 读取）
 	go func() {
@@ -75,7 +75,7 @@ func TestWaterlineBufferNoDataLossUnderBackpressure(t *testing.T) {
 
 // TestWaterlineBufferBlockingWrite 验证缓冲区满时 Write 阻塞而非短写。
 func TestWaterlineBufferBlockingWrite(t *testing.T) {
-	wb := newWaterlineBuffer(100)
+	wb := NewWaterlineBuffer(100)
 
 	// 写满缓冲区（Write 的调用方保证单次写入不超过容量）
 	fill := make([]byte, 100)
@@ -112,7 +112,7 @@ func TestWaterlineBufferBlockingWrite(t *testing.T) {
 
 // TestWaterlineBufferCloseUnblocksReader 验证 Close 后读空返回 io.EOF。
 func TestWaterlineBufferCloseUnblocksReader(t *testing.T) {
-	wb := newWaterlineBuffer(1024)
+	wb := NewWaterlineBuffer(1024)
 	wb.Write([]byte("hello"))
 	wb.Close()
 
@@ -131,7 +131,7 @@ func TestWaterlineBufferCloseUnblocksReader(t *testing.T) {
 // TestWaterlineBufferCloseUnblocksBlockedReader 验证消费者阻塞在 Read 时，
 // 外部调用 Close 能立刻将其唤醒（模拟客户端断开）。
 func TestWaterlineBufferCloseUnblocksBlockedReader(t *testing.T) {
-	wb := newWaterlineBuffer(1024)
+	wb := NewWaterlineBuffer(1024)
 
 	// 消费者：阻塞在 Read 上（缓冲区为空）
 	done := make(chan int, 1)
@@ -159,7 +159,7 @@ func TestWaterlineBufferCloseUnblocksBlockedReader(t *testing.T) {
 // TestWaterlineBufferCloseUnblocksBlockedWriter 验证生产者阻塞在 Write（缓冲区满）时，
 // 外部调用 Close 能立刻将其唤醒。
 func TestWaterlineBufferCloseUnblocksBlockedWriter(t *testing.T) {
-	wb := newWaterlineBuffer(100)
+	wb := NewWaterlineBuffer(100)
 
 	// 先写满缓冲区
 	if n := wb.Write(make([]byte, 100)); n != 100 {

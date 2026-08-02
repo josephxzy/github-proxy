@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github-proxy/config"
+	"github-proxy/internal/ratelimit"
+	"github-proxy/internal/waterline"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,14 +17,14 @@ const (
 
 // streamToClientWithWaterline 带水位线反压的流式传输。
 // 生产端从 GitHub 全速读取，受水位线暂停控制。
-// 消费端通过 rateLimitedWriter 限速写入客户端。
-func streamToClientWithWaterline(c *gin.Context, body io.Reader, rlw *rateLimitedWriter) int64 {
+// 消费端通过 ratelimit.Writer 限速写入客户端。
+func streamToClientWithWaterline(c *gin.Context, body io.Reader, rlw *ratelimit.Writer) int64 {
 	cfg := config.GetConfig()
 	bufCap := cfg.Server.BufferSize
 	if bufCap <= 0 {
 		bufCap = 8 * 1024 * 1024
 	}
-	wb := newWaterlineBuffer(int(bufCap))
+	wb := waterline.NewWaterlineBuffer(int(bufCap))
 
 	var written int64
 	producerDone := make(chan struct{})

@@ -1,5 +1,4 @@
-package github
-
+package api
 import (
 	"context"
 	"strings"
@@ -194,9 +193,12 @@ func InitGlobalAPILimiters(searchPerHour, releasePerHour, repoPerHour, defaultPe
 // CheckAPIQueue 检查是否需要等待 API 限制器。
 // 若限制器尚未初始化，返回 nil（不限速）。
 //
+// 白名单 token 用户（authenticated=true）豁免 API 限速：
+// 站长可无限制访问 API，其余用户按配置的每小时限额排队。
+//
 // 这是外部调用的主要入口函数，用于在发送 API 请求前进行限流检查
-func CheckAPIQueue(ctx context.Context, url string) error {
-	if GlobalAPILimiters == nil {
+func CheckAPIQueue(ctx context.Context, url string, authenticated bool) error {
+	if authenticated || GlobalAPILimiters == nil {
 		return nil
 	}
 	return GlobalAPILimiters.Acquire(ctx, url)

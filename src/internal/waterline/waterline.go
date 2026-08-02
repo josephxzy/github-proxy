@@ -1,4 +1,7 @@
-package handlers
+// Package waterline 提供带水位线反压的环形缓冲区。
+// 用于流式传输场景：生产者写入、消费者读取，缓冲水位过高时自动暂停生产者，
+// 防止无界缓冲导致内存膨胀或背压失控。
+package waterline
 
 import (
 	"io"
@@ -24,7 +27,8 @@ type WaterlineBuffer struct {
 	closed   bool
 }
 
-func newWaterlineBuffer(capacity int) *WaterlineBuffer {
+// NewWaterlineBuffer 创建容量为 capacity 字节的水位线缓冲区。
+func NewWaterlineBuffer(capacity int) *WaterlineBuffer {
 	b := &WaterlineBuffer{
 		data:     make([]byte, capacity),
 		capacity: capacity,
@@ -33,6 +37,7 @@ func newWaterlineBuffer(capacity int) *WaterlineBuffer {
 	return b
 }
 
+// usage 返回当前缓冲区占用比例（0.0 ~ 1.0）。
 func (b *WaterlineBuffer) usage() float64 {
 	return float64(b.count) / float64(b.capacity)
 }
@@ -98,13 +103,14 @@ func (b *WaterlineBuffer) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-// Close 关闭缓冲区，唤醒所有等待的 reader/writer。
+// IsClosed 返回缓冲区是否已关闭。
 func (b *WaterlineBuffer) IsClosed() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.closed
 }
 
+// Close 关闭缓冲区，唤醒所有等待的 reader/writer。
 func (b *WaterlineBuffer) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -112,6 +118,7 @@ func (b *WaterlineBuffer) Close() {
 	b.cond.Broadcast()
 }
 
+// WaitUnpaused 在缓冲区处于暂停状态时阻塞，等待恢复生产。
 func (b *WaterlineBuffer) WaitUnpaused() {
 	b.mu.Lock()
 	defer b.mu.Unlock()

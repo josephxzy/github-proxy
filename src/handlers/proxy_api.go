@@ -12,6 +12,25 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// waitAPIAccess 在请求将使用站内 token（消耗站内共享配额）时排队等待。
+// 返回 true 表示已获得配额（或被豁免）；返回 false 表示排队超时/取消，调用方应中止请求。
+//
+// 计费规则：代理的共享 API 池只限制「站内 token」的消耗——
+//   - 白名单 token 用户：豁免（authenticated=true，直接放行）
+//   - 用户自带有效 token：首次请求走用户自己的配额（GitHub 侧计费），不占用共享池
+//   - 用户 token 失效后改用站内 token 重试：视为一次站内消耗，重试前占用共享池
+func waitAPIAccess(c *gin.Context, u string, authenticated bool) bool {
+	ctx := c.Request.Context()
+	if err := ghproxyservice.CheckAPIQueue(ctx, u, authenticated); err != nil {
+		if ctx.Err() != nil {
+			return false
+		}
+		c.String(http.StatusGatewayTimeout, "API 请求排队超时，请稍后重试")
+		return false
+	}
+	return true
+}
+
 // proxyAPIRequest 处理 GitHub API 请求的代理函数。
 // 专门处理 api.github.com/repos/... 类型的 JSON API 请求。
 // 如获取 release 列表、tag 信息等。
@@ -40,14 +59,15 @@ func proxyAPIRequest(c *gin.Context, u string, redirectCount int) {
 
 	ctx := c.Request.Context()
 
-	// 检查 API 请求队列，实现速率限制
-	if err := ghproxyservice.CheckAPIQueue(ctx, u); err != nil {
-		// 如果客户端已断开连接，直接返回
-		if ctx.Err() != nil {
+	// 是否携带用户 token：携带则首次请求使用用户自己的配额（GitHub 侧计费），
+	// 不消耗代理共享池；仅当用户 token 失效、改用站内 token 重试时才计费。
+	_, hasUserToken := c.Get("userToken")
+
+	// 未携带用户 token：请求将使用站内 token（或匿名），属于站内资源消耗，需占用共享配额排队
+	if !hasUserToken {
+		if !waitAPIAccess(c, u, false) {
 			return
 		}
-		c.String(http.StatusGatewayTimeout, "API 请求排队超时，请稍后重试")
-		return
 	}
 
 	// 创建转发到 GitHub 的 HTTP 请求
@@ -93,9 +113,14 @@ func proxyAPIRequest(c *gin.Context, u string, redirectCount int) {
 	}
 
 	// 用户 token 失效时，用服务器 token 重试一次（仅 GET/HEAD，避免 body 已消费）
-	_, hasUserToken := c.Get("userToken")
 	if hasUserToken && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) && (c.Request.Method == "GET" || c.Request.Method == "HEAD") {
 		resp.Body.Close()
+
+		// 重试将改用站内 token，视为一次站内资源消耗，重试前占用共享配额
+		if !waitAPIAccess(c, u, false) {
+			return
+		}
+
 		req2, err := http.NewRequestWithContext(ctx, c.Request.Method, u, nil)
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("server error %v", err))

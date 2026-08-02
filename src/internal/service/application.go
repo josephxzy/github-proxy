@@ -46,18 +46,19 @@ func NewApplication(cfg *config.AppConfig) *Application {
 
 // Start 启动所有需要后台运行的服务。
 func (app *Application) Start(ctx context.Context) error {
-	cfg := config.GetConfig()
 	ghproxygithub.InitGlobalAPILimiters(
-		cfg.RateLimit.APISearchHourly,
-		cfg.RateLimit.APIReleaseHourly,
-		cfg.RateLimit.APIRepoHourly,
-		cfg.RateLimit.APIOtherHourly,
+		app.Config.RateLimit.APISearchHourly,
+		app.Config.RateLimit.APIReleaseHourly,
+		app.Config.RateLimit.APIRepoHourly,
+		app.Config.RateLimit.APIOtherHourly,
 	)
 
 	return nil
 }
 
 // Stop 优雅停止所有服务。
+// 当前所有服务均为无状态或自管理生命周期（如限速器懒初始化），
+// 暂无需要显式关闭的后台资源，保留该入口供未来扩展。
 func (app *Application) Stop() {
 }
 

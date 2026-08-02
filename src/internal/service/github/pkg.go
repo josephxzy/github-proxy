@@ -42,8 +42,9 @@ func InitGlobalAPILimiters(searchPerHour, releasePerHour, repoPerHour, defaultPe
 }
 
 // CheckAPIQueue 检查 API 请求是否需要排队等待限速。
-func CheckAPIQueue(ctx context.Context, url string) error {
-	return api.CheckAPIQueue(ctx, url)
+// 白名单 token 用户（authenticated=true）豁免 API 限速。
+func CheckAPIQueue(ctx context.Context, url string, authenticated bool) error {
+	return api.CheckAPIQueue(ctx, url, authenticated)
 }
 
 // IsAPIRequest 判断 URL 是否应走 API 代理路径（api.github.com）。

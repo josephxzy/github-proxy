@@ -1,5 +1,4 @@
-package github
-
+package download
 import (
 	"encoding/base64"
 	"net/http"

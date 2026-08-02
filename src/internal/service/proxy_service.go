@@ -71,11 +71,12 @@ func (s *ProxyService) Execute(req *ProxyRequest) *ProxyRequestResult {
 	if s.isAPIRequest(req.URL) {
 		result.IsAPI = true
 		apiResult := s.apiSvc.Execute(&ghproxyservice.APIRequest{
-			Context: req.Context,
-			Method:  req.Method,
-			URL:     req.URL,
-			Headers: req.Headers,
-			Body:    req.Body,
+			Context:       req.Context,
+			Method:        req.Method,
+			URL:           req.URL,
+			Headers:       req.Headers,
+			Body:          req.Body,
+			Authenticated: req.Authenticated,
 		})
 
 		result.StatusCode = apiResult.StatusCode

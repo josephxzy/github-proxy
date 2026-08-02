@@ -1,5 +1,4 @@
-package github
-
+package download
 import "testing"
 
 // 短链接 git clone 回归测试：

@@ -1,5 +1,4 @@
-package github
-
+package api
 import (
 	"encoding/json"
 	"fmt"

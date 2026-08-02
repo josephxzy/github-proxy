@@ -10,6 +10,7 @@ import (
 
 	"github-proxy/config"
 	ghproxyservice "github-proxy/internal/service/github"
+	"github-proxy/internal/ratelimit"
 	"github-proxy/pkg/network"
 
 	"github.com/gin-gonic/gin"
@@ -171,7 +172,7 @@ func getAuthFromContext(c *gin.Context) bool {
 	return false
 }
 
-func getDownloadLimiter(c *gin.Context) *rateLimitedWriter {
+func getDownloadLimiter(c *gin.Context) *ratelimit.Writer {
 	fw := &flushingWriter{
 		writer:        c.Writer,
 		flusher:       c.Writer.(http.Flusher),
@@ -181,15 +182,15 @@ func getDownloadLimiter(c *gin.Context) *rateLimitedWriter {
 
 	// 白名单用户不限速
 	if authenticated {
-		return &rateLimitedWriter{writer: fw}
+		return ratelimit.NewWriter(fw, nil, nil)
 	}
 
 	cfg := config.GetConfig()
-	return &rateLimitedWriter{
-		writer: fw,
-		user:   newRateLimiter(cfg.RateLimit.DownloadBytesPerSec),
-		global: getGlobalLimiter(),
-	}
+	return ratelimit.NewWriter(
+		fw,
+		ratelimit.NewUserLimiter(cfg.RateLimit.DownloadBytesPerSec),
+		ratelimit.GetGlobalLimiter(),
+	)
 }
 
 // handleScriptResponse 处理脚本文件 (.sh/.ps1) 的响应。

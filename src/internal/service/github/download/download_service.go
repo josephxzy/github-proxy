@@ -1,5 +1,4 @@
-package github
-
+package download
 import (
 	"context"
 	"errors"

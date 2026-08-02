@@ -1,5 +1,4 @@
-package github
-
+package api
 import (
 	"context"
 	"fmt"
@@ -35,11 +34,12 @@ func NewAPIService() *APIService {
 
 // APIRequest API 请求参数。
 type APIRequest struct {
-	Context context.Context // 请求上下文（用于超时和取消）
-	Method  string          // HTTP 方法
-	URL     string          // 目标 URL
-	Headers http.Header     // 请求头
-	Body    io.Reader       // 请求体
+	Context       context.Context // 请求上下文（用于超时和取消）
+	Method        string          // HTTP 方法
+	URL           string          // 目标 URL
+	Headers       http.Header     // 请求头
+	Body          io.Reader       // 请求体
+	Authenticated bool            // 是否为白名单 token 用户（豁免 API 限速）
 }
 
 // APIResult API 请求结果。
@@ -60,8 +60,8 @@ type APIResult struct {
 func (s *APIService) Execute(req *APIRequest) *APIResult {
 	result := &APIResult{}
 
-	// 步骤1：检查速率限制
-	if err := CheckAPIQueue(req.Context, req.URL); err != nil {
+	// 步骤1：检查速率限制（白名单 token 用户豁免）
+	if err := CheckAPIQueue(req.Context, req.URL, req.Authenticated); err != nil {
 		result.Error = fmt.Errorf("queue wait failed: %v", err)
 		result.StatusCode = http.StatusGatewayTimeout
 		return result
