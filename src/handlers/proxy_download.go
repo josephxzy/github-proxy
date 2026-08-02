@@ -133,8 +133,7 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 
 	// 安全检查1：内容类型过滤
 	// 阻止代理网页类型的内容（text/html），仅允许文件下载
-	// 例外：裸 repo URL（如 user/repo）可放行 HTML，因为这就是 GitHub 网页内容
-	if c.Request.Method == "GET" && network.IsBlockedContentType(resp.Header.Get("Content-Type")) && !ghproxyservice.IsBareRepoURL(u) {
+	if c.Request.Method == "GET" && network.IsBlockedContentType(resp.Header.Get("Content-Type")) {
 		c.JSON(http.StatusForbidden, map[string]string{
 			"error":   "Content type not allowed",
 			"message": "检测到网页类型，本服务不支持加速网页，请检查您的链接是否正确",
