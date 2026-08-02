@@ -57,7 +57,7 @@
 
             <div v-if="release.body" class="prose dark:prose-invert max-w-none mb-4 p-4 bg-gray-50 dark:bg-gray-950/50 ring-1 ring-gray-100 dark:ring-gray-800 rounded-xl text-sm text-gray-700 dark:text-gray-300 markdown-body" v-html="renderMarkdown(release.body)"></div>
 
-            <div v-if="release.assets && release.assets.length > 0" class="border-t border-gray-100 dark:border-gray-800 pt-4">
+            <div v-if="!release.draft && release.assets && release.assets.length > 0" class="border-t border-gray-100 dark:border-gray-800 pt-4">
               <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">下载资源 ({{ release.assets.length }})</h4>
               <div class="space-y-2">
                 <div v-for="asset in release.assets" :key="asset.id" class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 dark:bg-gray-950/50 ring-1 ring-gray-100 dark:ring-gray-800 rounded-xl hover:ring-gray-200 dark:hover:ring-gray-700 transition-all gap-3">
