@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -115,7 +116,7 @@ func (s *DownloadService) validateResponse(resp *http.Response, req *DownloadReq
 	}
 
 	if exceeded, msg := network.CheckFileSize(resp.Header.Get("Content-Length"), s.config.Server.FileSize); exceeded {
-		result.Error = fmt.Errorf(msg)
+		result.Error = errors.New(msg)
 		result.StatusCode = http.StatusRequestEntityTooLarge
 		return false
 	}

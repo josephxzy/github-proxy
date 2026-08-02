@@ -1,3 +1,7 @@
+// 文档页：负责渲染单篇 markdown 文档。
+// 包含 markdown 预处理（图片/路由链接重写、自定义指令转换）、
+// 侧边栏、搜索、目录导航与上一篇/下一篇分页。
+
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, FileText, Search } from "lucide-react";
 import { Children, cloneElement, isValidElement, useMemo } from "react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
@@ -19,6 +23,7 @@ type DocsPageProps = {
   docId?: string;
 };
 
+// extractText 递归提取 React 节点树的纯文本（用于标题 slug 生成）。
 function extractText(children: ReactNode): string {
   return Children.toArray(children)
     .map((child) => {
@@ -33,6 +38,7 @@ function extractText(children: ReactNode): string {
     .join("");
 }
 
+// rewriteMarkdownImageUrls 将 markdown 中的相对图片路径改写为打包后的资源 URL。
 function rewriteMarkdownImageUrls(markdown: string, docSourcePath: string): string {
   return markdown.replace(/(!\[[^\]]*\]\()([^)\s]+)(\))/g, (full, open, src, close) => {
     const resolved = resolveDocAssetUrl(docSourcePath, src);
@@ -40,12 +46,15 @@ function rewriteMarkdownImageUrls(markdown: string, docSourcePath: string): stri
   });
 }
 
+// rewriteMarkdownRouteUrls 将 markdown 中的 "#/docs/xxx" 路由链接改写为站内真实链接。
 function rewriteMarkdownRouteUrls(markdown: string): string {
   return markdown.replace(/(\[[^\]]+\]\()#\/docs(?:\/([^)#\s]+))?(#[^)]+)?(\))/g, (_full, open, docId, hash = "", close) => {
     return `${open}${docsPath(docId)}${hash}${close}`;
   });
 }
 
+// preprocessMarkdownDirectives 将自定义的 :::tip/warn/checkpoint 指令
+// 转换为 GitHub 风格的 [!NOTE] 引用块，并移除 HTML 注释。
 function preprocessMarkdownDirectives(markdown: string): string {
   const lines = markdown.split(/\r?\n/);
   const output: string[] = [];
@@ -84,6 +93,7 @@ function preprocessMarkdownDirectives(markdown: string): string {
   return output.join("\n").replace(/<!--[\s\S]*?-->/g, "");
 }
 
+// normalizeCalloutType 将调用块类型字符串归一化为合法类型（大小写不敏感）。
 function normalizeCalloutType(value: string): "tip" | "warn" | "checkpoint" | null {
   const normalized = value.toLowerCase();
   if (normalized === "tip" || normalized === "warn" || normalized === "checkpoint") {
@@ -92,6 +102,8 @@ function normalizeCalloutType(value: string): "tip" | "warn" | "checkpoint" | nu
   return null;
 }
 
+// stripCalloutMarker 识别 blockquote 首行中的 "[!TIP]/[!WARN]/[!CHECKPOINT]" 标记，
+// 返回调用块类型与去除标记后的子节点（供自定义渲染）。
 function stripCalloutMarker(children: ReactNode): {
   type: "tip" | "warn" | "checkpoint" | null;
   children: ReactNode;
@@ -122,6 +134,10 @@ function stripCalloutMarker(children: ReactNode): {
   };
 }
 
+// createMarkdownComponents 定制 markdown 渲染组件：
+//   - h2/h3 自动生成 slug 锚点 id（供目录跳转）
+//   - img 解析打包后的资源 URL
+//   - blockquote 支持自定义调用块样式
 function createMarkdownComponents(docSourcePath: string): Components {
   function Heading2({ children, ...props }: ComponentPropsWithoutRef<"h2">) {
     return (
@@ -275,6 +291,7 @@ export default function DocsPage({ docId }: DocsPageProps) {
   );
 }
 
+// DocsIndex 文档首页：展示文档统计、分类卡片网格。
 function DocsIndex() {
   const totalDocs = useMemo(() => flattenedDocs.length, []);
 

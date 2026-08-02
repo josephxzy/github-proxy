@@ -4,79 +4,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
-	"strings"
 
 	"github-proxy/config"
+	download "github-proxy/internal/service/github/download"
 	"github-proxy/pkg/network"
 )
 
-// githubExps GitHub URL 匹配正则表达式列表。
-// 用于从各种格式的 GitHub URL 中提取 owner 和 repo 信息
-var githubExps = []*regexp.Regexp{
-	// 匹配 GitHub API 端点（search、repos 等）
-	regexp.MustCompile(`^https?://api\.github\.com/(?:search|repos)/.*`),
-	// 匹配 releases 和 archive 下载链接
-	regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/(?:releases|archive)/.*`),
-	// 匹配 blob 和 raw 文件查看/下载链接
-	regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/(?:blob|raw)/.*`),
-	// 匹配 raw.githubusercontent.com 链接
-	regexp.MustCompile(`^https?://raw\.github(?:usercontent|github)\.com/([^/]+)/([^/]+)/.+?/.+`),
-	// 匹配 gist 链接
-	regexp.MustCompile(`^https?://gist\.(?:githubusercontent|github)\.com/([^/]+)/([^/]+).*`),
-}
-
 // MatchURL 从 GitHub URL 中提取 owner 和 repo 信息。
-//
-// 支持的 URL 格式：
-//   - https://github.com/owner/repo/releases/...
-//   - https://github.com/owner/repo/archive/...
-//   - https://github.com/owner/repo/blob/...
-//   - https://github.com/owner/repo/raw/...
-//   - https://raw.githubusercontent.com/owner/repo/...
-//   - https://gist.github.com/owner/...
-//
-// 返回值：
-//   - []string{owner, repo} 或 nil（如果不匹配）
+// 统一委托给 download 包实现，避免与 download/helpers.go 中的定义重复。
 func MatchURL(u string) []string {
-	for _, exp := range githubExps {
-		if matches := exp.FindStringSubmatch(u); matches != nil {
-			return matches[1:] // 返回捕获组（跳过完整匹配）
-		}
-	}
-	return nil
+	return download.MatchURL(u)
 }
 
 // ApplyGitHubToken 应用 GitHub Personal Access Token 到请求头。
-// 仅对 Release API 请求添加 Token，用于提高 API 速率限制。
-//
-// 为什么只对 Release API？
-//   - Release API 是最常被限流的端点
-//   - Token 可以将未认证的 60次/小时 提升到 5000次/小时
-//   - 其他 API 通常不需要如此高的速率
+// 统一委托给 download 包实现，避免与 download/helpers.go 中的定义重复。
 func ApplyGitHubToken(req *http.Request, url string) {
-	cfg := config.GetConfig()
-	if cfg.Server.GitHubToken != "" && strings.Contains(url, "api.github.com") {
-		if req.Header.Get("Authorization") == "" {
-			req.Header.Set("Authorization", "token "+cfg.Server.GitHubToken)
-		}
-	}
+	download.ApplyGitHubToken(req, url)
 }
 
 // IsGitHubAPIURL 判断 URL 是否指向 GitHub API（api.github.com）。
+// 统一委托给 download 包实现，避免与 download/helpers.go 中的定义重复。
 func IsGitHubAPIURL(u string) bool {
-	return strings.Contains(u, "api.github.com")
-}
-
-// releaseAPIExp Release API 的正则表达式模式
-var releaseAPIExp = regexp.MustCompile(`api\.github\.com/repos/[^/]+/[^/]+/releases`)
-
-// IsReleaseAPIURL 判断 URL 是否为 Release API 请求。
-func IsReleaseAPIURL(u string) bool {
-	if !strings.Contains(u, "api.github.com") {
-		return false
-	}
-	return releaseAPIExp.MatchString(u)
+	return download.IsGitHubAPIURL(u)
 }
 
 // GetDefaultBranch 获取指定仓库的默认分支名称。

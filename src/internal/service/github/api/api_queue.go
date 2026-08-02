@@ -101,7 +101,6 @@ func (l *HourlyRateLimiter) Acquire(ctx context.Context) error {
 //
 // 设计目的：
 // 不同类型的 API 有不同的速率限制需求：
-// 不同类型的 API 有不同的速率限制需求：
 //   - 搜索 API：较严格的限制（1200/小时）
 //   - Release API：较宽松的限制（3333/小时）
 //   - 仓库 API：标准限制（3333/小时）

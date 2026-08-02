@@ -14,23 +14,30 @@ var (
 	globalLimiterOnce sync.Once
 )
 
+// initGlobalLimiter 根据当前配置初始化全局限速器（只执行一次）。
+// 使用 sync.Once 保证并发安全，首次调用 getGlobalLimiter 时触发。
 func initGlobalLimiter() {
 	cfg := config.GetConfig()
 	globalLimiter = newGlobalRateLimiter(cfg.RateLimit.GlobalBytesPerSec)
 }
 
+// getGlobalLimiter 获取全局限速器实例（懒初始化，线程安全）。
 func getGlobalLimiter() *globalRateLimiter {
 	globalLimiterOnce.Do(initGlobalLimiter)
 	return globalLimiter
 }
 
 // rateLimiter 单用户漏桶限速器（独立，每请求一个）。
+// 按字节计算等待时间，控制单个未认证用户的下载带宽。
+// bytesPerSec<=0 时创建空限速器（perByte=0，wait 直接返回，不限速）。
 type rateLimiter struct {
 	perByte  time.Duration
 	mu       sync.Mutex
 	nextTime time.Time
 }
 
+// newRateLimiter 创建单用户限速器。
+// bytesPerSec<=0 表示不限速。
 func newRateLimiter(bytesPerSec int64) *rateLimiter {
 	if bytesPerSec <= 0 {
 		return &rateLimiter{}
@@ -40,6 +47,8 @@ func newRateLimiter(bytesPerSec int64) *rateLimiter {
 	}
 }
 
+// wait 阻塞 n 字节所需的限速等待时间。
+// 采用漏桶算法：每字节固定间隔 perByte，多请求之间按 nextTime 累积排队。
 func (r *rateLimiter) wait(n int) {
 	if r.perByte == 0 {
 		return
@@ -66,6 +75,7 @@ type globalRateLimiter struct {
 	lastTime time.Time
 }
 
+// newGlobalRateLimiter 创建全局限速器（令牌桶，容量为 1/10 秒的令牌量）。
 func newGlobalRateLimiter(bytesPerSec int64) *globalRateLimiter {
 	return &globalRateLimiter{
 		rate:     float64(bytesPerSec),
@@ -74,6 +84,9 @@ func newGlobalRateLimiter(bytesPerSec int64) *globalRateLimiter {
 	}
 }
 
+// wait 阻塞 n 字节所需的令牌等待时间。
+// 令牌桶按时间速率补充令牌，桶容量限制为 1/10 秒的令牌量（突发缓冲）。
+// 注意：与 per-user 限速器独立工作，全局限速不产生延迟叠加。
 func (g *globalRateLimiter) wait(n int) {
 	if g.rate == 0 {
 		return
@@ -106,12 +119,16 @@ func (g *globalRateLimiter) wait(n int) {
 	}
 }
 
+// rateLimitedWriter 组合单用户与全局限速的写包装器。
+// writer 为实际写入对象（通常是带 Flush 的 flushingWriter）。
+// user/global 为 nil 时跳过对应的限速逻辑（如白名单用户 user 为 nil）。
 type rateLimitedWriter struct {
 	writer io.Writer
 	user   *rateLimiter
 	global *globalRateLimiter
 }
 
+// Write 先按字节数等待限速，再写入底层 writer。
 func (w *rateLimitedWriter) Write(p []byte) (int, error) {
 	n := len(p)
 	if w.user != nil {
@@ -123,6 +140,7 @@ func (w *rateLimitedWriter) Write(p []byte) (int, error) {
 	return w.writer.Write(p)
 }
 
+// Flush 刷新底层 writer（若其支持 Flush）。
 func (w *rateLimitedWriter) Flush() {
 	if fw, ok := w.writer.(interface{ Flush() }); ok {
 		fw.Flush()

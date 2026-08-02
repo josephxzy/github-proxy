@@ -1,3 +1,4 @@
+// 面包屑导航：展示"文档 / 分组 / 标题"层级。
 import { ChevronRight } from "lucide-react";
 import { docsPath } from "../routing";
 

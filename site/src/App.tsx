@@ -1,3 +1,6 @@
+// 站点根组件：基于 Hash-free 的 History 路由切换首页与文档页，
+// 并实现站内链接的 SPA 拦截跳转（避免整页刷新）。
+
 import {
   ArrowRight,
   CheckCircle2,
@@ -29,8 +32,10 @@ const features = [
   { icon: FileText, title: "仓库搜索", text: "支持排序、筛选，一键查看 ReadMe" },
 ];
 
+// 站内导航触发的自定义事件名（pushState 不触发 popstate）。
 const routeChangeEvent = "github-proxy-site:navigation";
 
+// subscribePath 订阅路径变化（浏览器前进/后退 + 站内 SPA 跳转）。
 function subscribePath(callback: () => void) {
   window.addEventListener("popstate", callback);
   window.addEventListener(routeChangeEvent, callback);
@@ -40,14 +45,18 @@ function subscribePath(callback: () => void) {
   };
 }
 
+// getPathSnapshot 返回当前 pathname（useSyncExternalStore 的快照）。
 function getPathSnapshot() {
   return window.location.pathname;
 }
 
+// usePathRoute 通过 useSyncExternalStore 订阅当前路径（服务端预渲染时用 initialPath 兜底）。
 function usePathRoute(initialPath = "/") {
   return useSyncExternalStore(subscribePath, getPathSnapshot, () => initialPath);
 }
 
+// useHistoryNavigation 拦截站内链接点击，改用 history.pushState 实现无刷新跳转。
+// 跳过：被阻止的事件、非左键、带修饰键、外链、新窗口/下载链接、纯 hash 变化。
 function useHistoryNavigation() {
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -86,6 +95,7 @@ type AppProps = {
   initialPath?: string;
 };
 
+// App 根据当前路由渲染首页或文档页。
 function App({ initialPath }: AppProps) {
   useHistoryNavigation();
   const pathname = usePathRoute(initialPath);
@@ -103,6 +113,7 @@ function App({ initialPath }: AppProps) {
   );
 }
 
+// SiteNav 顶部导航栏（含 GitHub star 展示）。
 function SiteNav({ page }: { page: "home" | "docs" }) {
   const stars = useGithubStars("josephxzy", "github-proxy");
   return (
@@ -138,6 +149,7 @@ function SiteNav({ page }: { page: "home" | "docs" }) {
   );
 }
 
+// HomePage 首页：Hero、功能特性、快速开始、文档与 CTA 区块。
 function HomePage() {
   const stars = useGithubStars("josephxzy", "github-proxy");
   usePageMeta(null);

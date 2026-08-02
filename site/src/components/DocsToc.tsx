@@ -1,13 +1,18 @@
+// 文档目录组件：根据 markdown 标题生成锚点目录，
+// 并通过 IntersectionObserver 高亮当前阅读的标题。
+
 import { ListTree } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
 
+// DocHeading markdown 中的一个标题（h2/h3）。
 export type DocHeading = {
   id: string;
   depth: 2 | 3;
   text: string;
 };
 
+// slugify 将标题文本转换为可用于锚点的 slug。
 export function slugify(text: string): string {
   return (
     text
@@ -20,6 +25,7 @@ export function slugify(text: string): string {
   );
 }
 
+// parseMarkdownHeadings 从 markdown 文本中解析出所有 h2/h3 标题。
 export function parseMarkdownHeadings(markdown: string): DocHeading[] {
   return markdown
     .split(/\r?\n/)
@@ -38,6 +44,7 @@ export function parseMarkdownHeadings(markdown: string): DocHeading[] {
     .filter((heading): heading is DocHeading => Boolean(heading));
 }
 
+// useActiveHeading 监听滚动，返回当前处于视口内的标题 id。
 function useActiveHeading(headingIds: string[]) {
   const [activeId, setActiveId] = useState<string | undefined>(headingIds[0]);
 
@@ -85,6 +92,7 @@ type TocGroup = {
   children: DocHeading[];
 };
 
+// groupHeadings 将标题按 h2 分组，h3 归入其前的 h2。
 function groupHeadings(headings: DocHeading[]): TocGroup[] {
   const groups: TocGroup[] = [];
   for (const heading of headings) {
@@ -97,6 +105,7 @@ function groupHeadings(headings: DocHeading[]): TocGroup[] {
   return groups;
 }
 
+// scrollToHeading 平滑滚动到指定锚点。
 function scrollToHeading(id: string) {
   const element = document.getElementById(id);
   if (element) {
@@ -104,6 +113,7 @@ function scrollToHeading(id: string) {
   }
 }
 
+// handleTocClick 拦截目录链接默认跳转，改为平滑滚动。
 function handleTocClick(event: MouseEvent<HTMLAnchorElement>, id: string) {
   event.preventDefault();
   scrollToHeading(id);

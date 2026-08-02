@@ -1,3 +1,7 @@
+// 文档目录清单：定义文档站的分组与每篇文档的元信息，
+// 供文档侧边栏、搜索索引和文档页渲染使用。
+
+// SiteDocCategory 文档分组（侧边栏的一个分类）。
 export type SiteDocCategory = {
   id: string;
   title: string;
@@ -5,19 +9,22 @@ export type SiteDocCategory = {
   docs: SiteDocEntry[];
 };
 
+// SiteDocEntry 单篇文档的元信息。
 export type SiteDocEntry = {
-  id: string;
+  id: string; // 文档唯一 id（也用于路由 /docs/:id）
   title: string;
   description: string;
-  sourcePath: string;
-  githubPath: string;
+  sourcePath: string; // markdown 源文件路径（相对本文件，供 import.meta.glob 引用）
+  githubPath: string; // GitHub 仓库中的源文件路径（用于"GitHub 原文"链接）
 };
 
+// FlattenedSiteDocEntry 摊平后的文档条目，携带所属分组信息。
 export type FlattenedSiteDocEntry = SiteDocEntry & {
   categoryId: string;
   categoryTitle: string;
 };
 
+// doc 便捷构造单篇文档条目。
 function doc(
   id: string,
   title: string,
@@ -173,6 +180,7 @@ export const docsManifest: SiteDocCategory[] = [
   },
 ];
 
+// flattenedDocs 将所有分组摊平为单层列表，便于按索引查找上一篇/下一篇文档。
 export const flattenedDocs: FlattenedSiteDocEntry[] = docsManifest.flatMap((category) =>
   category.docs.map((doc) => ({ ...doc, categoryId: category.id, categoryTitle: category.title })),
 );

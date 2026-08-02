@@ -23,7 +23,7 @@ type Server struct {
 //   - router: HTTP 处理器（通常是 Gin 路由引擎）
 //
 // 超时配置：
-//   - ReadTimeout: 5分钟 - 读取请求头的超时时间（适应大文件上传场景）
+//   - ReadTimeout: 5分钟 - 读取整个请求（含请求体）的超时时间（适应大文件上传场景）
 //   - WriteTimeout: 30分钟 - 写入响应的超时时间（适应大文件下载场景）
 //   - IdleTimeout: 10分钟 - 空闲连接的超时时间
 func NewServer(cfg *config.AppConfig, router http.Handler) *Server {

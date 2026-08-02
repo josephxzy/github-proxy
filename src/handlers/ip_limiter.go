@@ -19,8 +19,9 @@ type IPRateLimiter struct {
 	cleanupAge time.Duration // 超过此时间未访问的条目被清理
 }
 
+// ipEntry IP 限流条目，记录固定时间窗口内的请求计数。
 type ipEntry struct {
-	count      int
+	count       int
 	windowStart time.Time
 }
 
@@ -40,6 +41,12 @@ func NewIPRateLimiter(limit int) *IPRateLimiter {
 	return l
 }
 
+// Middleware 返回 Gin 中间件，对每个请求执行 IP 限流检查。
+// 以下请求豁免限流：
+//   - 白名单 token 用户（authenticated）
+//   - 前端静态资源路径（isFrontendPath）
+//
+// 超限时返回 429 并中止请求。
 func (l *IPRateLimiter) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if l.limit <= 0 {
@@ -64,6 +71,8 @@ func (l *IPRateLimiter) Middleware() gin.HandlerFunc {
 	}
 }
 
+// allow 对指定 IP 执行固定窗口计数。
+// 新 IP 或窗口过期时创建新窗口；否则递增计数并判断是否超限。
 func (l *IPRateLimiter) allow(ip string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -78,6 +87,7 @@ func (l *IPRateLimiter) allow(ip string) bool {
 	return entry.count <= l.limit
 }
 
+// isFrontendPath 判断请求路径是否为前端静态资源（豁免 IP 限流）。
 func isFrontendPath(path string) bool {
 	return path == "/" ||
 		path == "/ready" ||
@@ -86,6 +96,9 @@ func isFrontendPath(path string) bool {
 		strings.HasPrefix(path, "/public/")
 }
 
+// normalizeIP 归一化客户端 IP。
+// IPv4 原样返回；IPv6 仅保留 /64 前缀（清零低 64 位），
+// 避免同一用户的临时地址变动导致限流失效。
 func normalizeIP(ip string) string {
 	parsed := net.ParseIP(ip)
 	if parsed == nil {
@@ -99,6 +112,7 @@ func normalizeIP(ip string) string {
 	return parsed.Mask(mask).String()
 }
 
+// cleanupLoop 周期性地清理过期条目，防止 map 无限增长。
 func (l *IPRateLimiter) cleanupLoop() {
 	ticker := time.NewTicker(20 * time.Minute)
 	defer ticker.Stop()
@@ -107,6 +121,7 @@ func (l *IPRateLimiter) cleanupLoop() {
 	}
 }
 
+// cleanup 删除超过 cleanupAge 未访问的条目。
 func (l *IPRateLimiter) cleanup() {
 	l.mu.Lock()
 	defer l.mu.Unlock()

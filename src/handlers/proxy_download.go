@@ -129,8 +129,6 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 		}
 	}
 
-	latency := int(time.Since(startTime).Milliseconds())
-
 	// 安全检查1：内容类型过滤
 	// 阻止代理网页类型的内容（text/html），仅允许文件下载
 	if c.Request.Method == "GET" && network.IsBlockedContentType(resp.Header.Get("Content-Type")) {
@@ -157,10 +155,10 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 	// 根据资源类型分发处理
 	if ghproxyservice.IsScriptURL(u) {
 		// 脚本文件需要特殊处理（URL 替换）
-		handleScriptResponse(c, resp, realHost, latency, redirectCount)
+		handleScriptResponse(c, resp, realHost, redirectCount)
 	} else {
 		// 普通文件直接转发
-		handleNormalResponse(c, resp, preflightSize, isRangeRequest, latency, redirectCount)
+		handleNormalResponse(c, resp, preflightSize, isRangeRequest, redirectCount)
 	}
 }
 
@@ -204,7 +202,7 @@ func getDownloadLimiter(c *gin.Context) *rateLimitedWriter {
 //  3. 响应体始终被整体替换为处理后的内容，因此无条件删除原 CL/CE，
 //     由 writeResponse 按处理后的大小重新设置 CL（为 0 时走 chunked）
 //  4. 调用 writeResponse 发送到客户端
-func handleScriptResponse(c *gin.Context, resp *http.Response, realHost string, latency int, redirectCount int) {
+func handleScriptResponse(c *gin.Context, resp *http.Response, realHost string, redirectCount int) {
 	// 检测是否为 gzip 压缩
 	isGzipCompressed := resp.Header.Get("Content-Encoding") == "gzip"
 
@@ -222,7 +220,7 @@ func handleScriptResponse(c *gin.Context, resp *http.Response, realHost string, 
 	resp.Header.Del("Content-Encoding")
 
 	// 写入响应到客户端
-	writeResponse(c, resp, processedBody, processedSize, latency, redirectCount)
+	writeResponse(c, resp, processedBody, processedSize, redirectCount)
 }
 
 // handleNormalResponse 处理普通文件（非脚本）的响应。
@@ -246,7 +244,7 @@ func handleScriptResponse(c *gin.Context, resp *http.Response, realHost string, 
 // 参数:
 //   - preflightSize: Range 预检获得的文件总大小（仅首次下载有效）
 //   - isRangeRequest: 客户端是否携带了 Range 请求头（断点续传标志）
-func handleNormalResponse(c *gin.Context, resp *http.Response, preflightSize int64, isRangeRequest bool, latency int, redirectCount int) {
+func handleNormalResponse(c *gin.Context, resp *http.Response, preflightSize int64, isRangeRequest bool, redirectCount int) {
 	var knownSize int64
 
 	if isRangeRequest {
@@ -281,7 +279,7 @@ func handleNormalResponse(c *gin.Context, resp *http.Response, preflightSize int
 	}
 
 	// 写入响应到客户端
-	writeResponse(c, resp, resp.Body, knownSize, latency, redirectCount)
+	writeResponse(c, resp, resp.Body, knownSize, redirectCount)
 }
 
 // writeResponse 响应处理的最后阶段，负责将数据发送给客户端。
@@ -296,7 +294,7 @@ func handleNormalResponse(c *gin.Context, resp *http.Response, preflightSize int
 //	200 + knownSize>0  → 设置 CL=knownSize（首次下载，进度条正常）
 //	206               → 不覆盖 CL（断点续传，使用 GitHub 返回的剩余大小）
 //	chunked            → 不设置 CL（降级方案，无进度但可下载）
-func writeResponse(c *gin.Context, resp *http.Response, body io.Reader, knownSize int64, latency int, redirectCount int) {
+func writeResponse(c *gin.Context, resp *http.Response, body io.Reader, knownSize int64, redirectCount int) {
 	// 处理重定向响应
 	if location := resp.Header.Get("Location"); location != "" {
 		if _, needRedirect := network.HandleRedirectLocation(c, location, ghproxyservice.MatchURL); needRedirect {
@@ -335,14 +333,7 @@ func writeResponse(c *gin.Context, resp *http.Response, body io.Reader, knownSiz
 	c.Writer.WriteHeaderNow()
 
 	// 开始流式传输数据（带水位线反压）
-	transferStart := time.Now()
-	bytesWritten := streamToClientWithWaterline(c, body, getDownloadLimiter(c))
-	transferTime := time.Since(transferStart)
-
-	// 这些变量可用于日志记录或监控（当前未使用）
-	_ = latency
-	_ = bytesWritten
-	_ = transferTime
+	streamToClientWithWaterline(c, body, getDownloadLimiter(c))
 }
 
 // copyResponseHeaders 将 GitHub 服务器的所有响应头逐个复制到客户端响应中。

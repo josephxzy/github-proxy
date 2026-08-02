@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+// 获取 GitHub 仓库 star 数，带 30 分钟本地缓存，避免频繁请求外部 API。
 const CACHE_KEY_PREFIX = "github-proxy-site:github-stars";
 const TTL_MS = 30 * 60 * 1000;
 
@@ -9,6 +10,7 @@ function cacheKey(owner: string, repo: string) {
   return `${CACHE_KEY_PREFIX}:${owner}/${repo}`;
 }
 
+// readCache 读取本地缓存的 star 数（localStorage 不可用时返回 null）。
 function readCache(key: string): CacheEntry | null {
   if (typeof window === "undefined" || !window.localStorage) {
     return null;
@@ -24,6 +26,7 @@ function readCache(key: string): CacheEntry | null {
   }
 }
 
+// writeCache 写入 star 数到本地缓存（失败静默忽略）。
 function writeCache(key: string, entry: CacheEntry) {
   if (typeof window === "undefined" || !window.localStorage) {
     return;
@@ -35,6 +38,7 @@ function writeCache(key: string, entry: CacheEntry) {
   }
 }
 
+// useGithubStars 返回仓库的 star 数；未知或获取失败时返回 null（组件自行隐藏）。
 export function useGithubStars(owner: string, repo: string): number | null {
   const key = cacheKey(owner, repo);
   const [count, setCount] = useState<number | null>(() => readCache(key)?.count ?? null);
@@ -68,6 +72,7 @@ export function useGithubStars(owner: string, repo: string): number | null {
   return count;
 }
 
+// formatStarCount 将 star 数格式化为紧凑可读形式（如 1234 → "1.2k"）。
 export function formatStarCount(count: number): string {
   if (count < 1000) return String(count);
   if (count < 10_000) return `${(count / 1000).toFixed(1)}k`;

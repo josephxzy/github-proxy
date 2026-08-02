@@ -126,16 +126,3 @@ func (w *flushingWriter) Flush() {
 	w.flusher.Flush()
 	w.flushed = w.written
 }
-
-type countWriter struct {
-	writer  io.Writer
-	written *int64
-}
-
-func (w *countWriter) Write(p []byte) (int, error) {
-	n, err := w.writer.Write(p)
-	if n > 0 {
-		*w.written += int64(n)
-	}
-	return n, err
-}

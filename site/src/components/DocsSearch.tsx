@@ -1,3 +1,6 @@
+// 文档搜索组件：基于文档全文建立内存索引，实时过滤并展示前 8 条结果。
+// 支持 "/" 快捷键聚焦、Escape 清空。
+
 import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getDocContent } from "../docsContent";
@@ -12,10 +15,12 @@ type SearchResult = {
   excerpt: string;
 };
 
+// normalizeText 归一化文本用于包含匹配（转小写、压缩空白）。
 function normalizeText(value: string) {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+// createExcerpt 生成命中片段：优先截取首个匹配位置周围的文字，否则取开头。
 function createExcerpt(content: string, query: string) {
   const flatContent = content.replace(/[#>*`_\-[\]()]/g, " ").replace(/\s+/g, " ").trim();
   const lowerContent = flatContent.toLowerCase();

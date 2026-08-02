@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// blockedContentTypes 被阻止的内容类型白名单。
+// blockedContentTypes 被阻止的内容类型黑名单。
 // 这些类型的响应将被拒绝代理，防止滥用 GitHub 代理服务加速网页内容。
 var blockedContentTypes = map[string]bool{
 	"text/html":             true, // HTML 页面（最常见的误用场景）

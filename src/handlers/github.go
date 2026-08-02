@@ -59,14 +59,14 @@ func GitHubProxyHandler(c *gin.Context) {
 	// 剥离代理专用查询参数（token），不发给 GitHub
 	rawPath = ghproxyservice.StripProxyQueryParams(rawPath)
 
-	// 步骤3：根据 URL 类型分流处理
+	// 步骤1：根据 URL 类型分流处理
 	// API 请求（api.github.com）不需要经过下载模块的 URL 验证
 	if ghproxyservice.IsAPIRequest(rawPath) {
 		ProxyGitHubRequest(c, rawPath)
 		return
 	}
 
-	// 步骤4：URL 规范化（仅对下载请求进行验证）
+	// 步骤2：URL 规范化（仅对下载请求进行验证）
 	normalizeResult := globalApplication.GetURLNormalizer().Normalize(rawPath)
 	if !normalizeResult.Valid {
 		c.String(http.StatusForbidden, normalizeResult.ErrorMessage)
@@ -74,7 +74,7 @@ func GitHubProxyHandler(c *gin.Context) {
 	}
 	rawPath = normalizeResult.NormalizedURL
 
-	// 步骤5：分发到对应的处理器
+	// 步骤3：分发到对应的处理器
 	ProxyGitHubRequest(c, rawPath)
 }
 
