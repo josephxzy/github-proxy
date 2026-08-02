@@ -51,10 +51,10 @@ Wiki 不替代计划、检查点或发布说明：
 
 - [Wiki Index](./wiki/README.md)
 - [Wiki Entry Template](./wiki/entry-template.md)
-- [Token 认证体系](./wiki/architecture/token-auth.md)
-- [下载管道与水位线反压](./wiki/architecture/download-pipeline.md)
-- [双层限速设计](./wiki/architecture/rate-limiting-design.md)
-- [IP 三层限流体系](./wiki/architecture/ip-rate-limiting.md)
+- [Token 认证体系](./design/token.md)
+- [下载管道与水位线反压](./design/download.md)
+- [双层限速设计](./design/rate-limit.md)
+- [IP 三层限流体系](./design/ip-limit.md)
 
 ### `docs/releases`
 

@@ -15,10 +15,12 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 
 ### Architecture
 
-- [Token 认证体系](./architecture/token-auth.md)
-- [下载管道与水位线反压](./architecture/download-pipeline.md)
-- [双层限速设计](./architecture/rate-limiting-design.md)
-- [IP 三层限流体系](./architecture/ip-rate-limiting.md)
+架构设计规范文档统一收录在 `docs/design`，此处不再重复维护：
+
+- [Token 认证体系](../design/token.md)
+- [下载管道与水位线反压](../design/download.md)
+- [双层限速设计](../design/rate-limit.md)
+- [IP 三层限流体系](../design/ip-limit.md)
 
 ### Workflows
 
