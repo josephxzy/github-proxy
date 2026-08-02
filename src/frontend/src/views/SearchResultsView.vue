@@ -2,54 +2,16 @@
   <main class="flex-1 flex items-start justify-center py-8 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
     <div class="w-full max-w-[1000px] mx-auto">
       <div class="pt-6">
-        <button @click="$emit('back')" class="inline-flex items-center gap-2 px-3 py-1.5 -ml-3 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-500/10 font-medium transition-all mb-6">
+        <button
+          @click="$emit('back')"
+          title="返回首页"
+          class="fixed right-4 sm:right-6 top-1/2 -translate-y-1/2 z-[9000] w-11 h-11 flex items-center justify-center rounded-full bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-700 shadow-lg hover:shadow-xl hover:ring-gray-300 dark:hover:ring-gray-600 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 active:scale-95 transition-all"
+        >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m15 18-6-6 6-6"></path>
+            <path d="M19 12H5"></path>
+            <path d="m12 19-7-7 7-7"></path>
           </svg>
-          返回首页
         </button>
-
-        <!-- 搜索选项栏 -->
-        <div v-if="!loadingSearch && !searchError && searchResults.length > 0" class="bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-800 rounded-2xl shadow-sm p-3 sm:p-4 mb-6 space-y-2 sm:space-y-3 animate-fade-in">
-          <!-- 排序和范围选项 -->
-          <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-            <!-- 排序选项 -->
-            <div class="flex items-center gap-1.5 sm:gap-2">
-              <label class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">排序:</label>
-              <select
-                v-model="sortBy"
-                @change="handleSortChange"
-                class="px-2 sm:px-3 py-1 sm:py-1.5 bg-gray-50 dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-gray-700 border-0 rounded-lg text-xs sm:text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-shadow"
-              >
-                <option value="">最佳匹配</option>
-                <option value="stars">星标数</option>
-                <option value="forks">Fork 数</option>
-                <option value="updated">最近更新</option>
-              </select>
-            </div>
-
-            <!-- 搜索范围 -->
-            <div class="flex items-center gap-1.5 sm:gap-2">
-              <label class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">范围:</label>
-              <select
-                v-model="searchScope"
-                @change="handleScopeChange"
-                class="px-2 sm:px-3 py-1 sm:py-1.5 bg-gray-50 dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-gray-700 border-0 rounded-lg text-xs sm:text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-shadow"
-              >
-                <option value="all">全部</option>
-              <option value="name">名称</option>
-              <option value="description">描述</option>
-              <option value="readme">ReadMe</option>
-              </select>
-            </div>
-
-            <!-- 结果统计 -->
-            <div class="w-full sm:ml-auto text-xs sm:text-sm text-gray-500 dark:text-gray-400 pt-1 sm:pt-0">
-              共找到 <span class="font-semibold text-blue-600 dark:text-blue-400">{{ totalResults }}</span> 个仓库
-              <span v-if="totalResults > 0" class="ml-2">(第 {{ currentPage }}/{{ totalPages }} 页)</span>
-            </div>
-          </div>
-        </div>
 
         <div v-if="loadingSearch" class="text-center py-12">
           <svg class="animate-spin h-8 w-8 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -79,48 +41,46 @@
             </span>
           </div>
 
-          <div v-for="repo in searchResults" :key="repo.id" class="bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-800 rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-lg hover:ring-gray-300 dark:hover:ring-gray-700 hover:-translate-y-0.5 transition-all animate-fade-in-up">
-            <div class="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-0">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-3 mb-2">
-                  <div class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 ring-1 ring-gray-200/70 dark:ring-gray-700 flex items-center justify-center flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-700 dark:text-gray-300">
-                      <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-                    </svg>
-                  </div>
-                  <a :href="repo.html_url" target="_blank" rel="noopener noreferrer" class="text-lg sm:text-xl font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline underline-offset-4 truncate transition-colors">
-                    {{ repo.full_name }}
-                  </a>
-                </div>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">{{ repo.description || '暂无描述' }}</p>
-                <div class="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-gray-500 dark:text-gray-400">
-                  <span v-if="repo.language" class="flex items-center gap-1.5">
-                    <span class="w-3 h-3 rounded-full flex-shrink-0 ring-1 ring-black/5 dark:ring-white/10" :style="{ backgroundColor: languageColor(repo.language) }"></span>
-                    {{ repo.language }}
-                  </span>
-                  <span class="flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" class="text-amber-400">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 12 17.77 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                    </svg>
-                    {{ formatStarCount(repo.stargazers_count) }}
-                  </span>
-                  <span class="flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="18" r="3"></circle>
-                      <circle cx="6" cy="6" r="3"></circle>
-                      <circle cx="18" cy="6" r="3"></circle>
-                      <line x1="8.7" y1="14.7" x2="15.3" y2="9.3"></line>
-                      <line x1="15.3" y1="14.7" x2="8.7" y2="9.3"></line>
-                    </svg>
-                    {{ repo.forks_count }}
-                  </span>
-                  <span>最后提交 {{ formatDate(repo.pushed_at) }}</span>
-                </div>
+          <div v-for="repo in searchResults" :key="repo.id" class="bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-800 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-lg hover:ring-gray-300 dark:hover:ring-gray-700 hover:-translate-y-0.5 transition-all animate-fade-in-up">
+            <div class="flex items-center gap-3 mb-2">
+              <div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 ring-1 ring-gray-200/70 dark:ring-gray-700 flex items-center justify-center flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-700 dark:text-gray-300">
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                </svg>
               </div>
-              <div class="flex flex-row sm:flex-col gap-1.5 sm:gap-2 sm:ml-4 w-full sm:w-auto">
+              <a :href="repo.html_url" target="_blank" rel="noopener noreferrer" class="text-lg sm:text-xl font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline underline-offset-4 truncate transition-colors">
+                {{ repo.full_name }}
+              </a>
+            </div>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2.5 line-clamp-1">{{ repo.description || '暂无描述' }}</p>
+            <div class="flex flex-wrap items-center gap-x-2 sm:gap-x-4 gap-y-2">
+              <div class="flex flex-wrap items-center gap-x-2 sm:gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                <span v-if="repo.language" class="flex items-center gap-1.5">
+                  <span class="w-3 h-3 rounded-full flex-shrink-0 ring-1 ring-black/5 dark:ring-white/10" :style="{ backgroundColor: languageColor(repo.language) }"></span>
+                  {{ repo.language }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" class="text-amber-400">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 12 17.77 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                  </svg>
+                  {{ formatStarCount(repo.stargazers_count) }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="18" r="3"></circle>
+                    <circle cx="6" cy="6" r="3"></circle>
+                    <circle cx="18" cy="6" r="3"></circle>
+                    <line x1="8.7" y1="14.7" x2="15.3" y2="9.3"></line>
+                    <line x1="15.3" y1="14.7" x2="8.7" y2="9.3"></line>
+                  </svg>
+                  {{ repo.forks_count }}
+                </span>
+                <span>最后提交 {{ formatDate(repo.pushed_at) }}</span>
+              </div>
+              <div class="flex items-center gap-1.5 sm:gap-2 ml-auto">
                 <button
                   @click="downloadRepoZip(repo)"
-                  class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-2 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-medium rounded-xl active:scale-[0.98] transition-all whitespace-nowrap"
+                  class="inline-flex items-center justify-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg active:scale-[0.98] transition-all whitespace-nowrap"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -131,13 +91,13 @@
                 </button>
                 <button
                   @click="viewReleases(repo)"
-                  class="flex-1 sm:flex-none px-2 sm:px-4 py-1.5 sm:py-2 ring-1 ring-gray-200 dark:ring-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:ring-gray-300 dark:hover:ring-gray-600 text-xs sm:text-sm font-medium rounded-xl transition-all whitespace-nowrap"
+                  class="px-2.5 sm:px-3 py-1 sm:py-1.5 ring-1 ring-gray-200 dark:ring-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:ring-gray-300 dark:hover:ring-gray-600 text-xs font-medium rounded-lg transition-all whitespace-nowrap"
                 >
                   Releases
                 </button>
                 <button
                   @click="showReadme(repo)"
-                  class="flex-1 sm:flex-none px-2 sm:px-4 py-1.5 sm:py-2 ring-1 ring-gray-200 dark:ring-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:ring-gray-300 dark:hover:ring-gray-600 text-xs sm:text-sm font-medium rounded-xl transition-all whitespace-nowrap"
+                  class="px-2.5 sm:px-3 py-1 sm:py-1.5 ring-1 ring-gray-200 dark:ring-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:ring-gray-300 dark:hover:ring-gray-600 text-xs font-medium rounded-lg transition-all whitespace-nowrap"
                 >
                   ReadMe
                 </button>
@@ -248,13 +208,6 @@ const totalResults = ref(0)
 const currentPage = ref(1)
 const perPage = 30
 
-// 排序选项
-const sortBy = ref('')
-const sortOrder = ref('desc')
-
-// 搜索范围选项
-const searchScope = ref('all')
-
 const showReadmeModal = ref(false)
 const readmeLoading = ref(false)
 const readmeError = ref('')
@@ -330,17 +283,6 @@ const buildQueryString = (query) => {
   // 用户输入 "facebook" 或 "facebook web" 都直接作为全局搜索
   // GitHub API 会在所有字段中搜索这些关键词
 
-  // 4. 根据搜索范围添加限定符（仅在非特殊查询时）
-  // 注意：不要对用户名或仓库名自动添加 in: 限定符
-  if (searchScope.value !== 'all' && !baseQuery.includes('user:') && !baseQuery.includes('org:')) {
-    const scopeMap = {
-      'name': 'in:name',
-      'description': 'in:description',
-      'readme': 'in:readme'
-    }
-    baseQuery = `${baseQuery} ${scopeMap[searchScope.value]}`
-  }
-
   return baseQuery
 }
 
@@ -362,11 +304,6 @@ const searchRepositories = async (page = 1) => {
 
     // 构建API参数
     let apiPath = `search/repositories?q=${encodeURIComponent(query)}&per_page=${perPage}&page=${page}`
-
-    // 添加排序参数（仅当选择了排序方式时）
-    if (sortBy.value) {
-      apiPath += `&sort=${sortBy.value}&order=${sortOrder.value}`
-    }
 
     const proxyUrl = '/' + `https://api.github.com/${apiPath}`
     const fetchOptions = { cache: 'no-store' }
@@ -427,18 +364,6 @@ const searchRepositories = async (page = 1) => {
   } finally {
     loadingSearch.value = false
   }
-}
-
-// 排序变更处理
-const handleSortChange = () => {
-  currentPage.value = 1
-  searchRepositories(1)
-}
-
-// 搜索范围变更处理
-const handleScopeChange = () => {
-  currentPage.value = 1
-  searchRepositories(1)
 }
 
 // 跳转到指定页

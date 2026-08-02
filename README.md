@@ -64,14 +64,14 @@ location / {
 
 ## 文档
 
-完整文档站：[docs-site](docs-site)（Astro + Starlight 构建）
+| 类型 | 位置 | 说明 |
+|:---|:---|:---|
+| 用户文档站 | [site](site) | React + Vite 构建，部署于 GitHub Pages |
+| 设计文档 | [docs/design](docs/design) | 系统设计、模块接口、领域建模 |
+| 项目 Wiki | [docs/wiki](docs/wiki) | 长期架构规则、工作流边界、调试经验 |
+| 发布历史 | [docs/releases](docs/releases) | 用户可见版本更新说明 |
 
-| 文档 | 内容 |
-|:---|:---|
-| [使用说明](https://josephxzy.github.io/github-proxy/usage/url-format) | URL 格式、Git 加速、私有仓库、搜索、黑白名单 |
-| [Token 透传与认证](https://josephxzy.github.io/github-proxy/design/token) | 三类 token 的来源、应用、优先级、白名单机制 |
-| [下载与断点续传](https://josephxzy.github.io/github-proxy/design/download) | 下载管道、Range 探测、脚本处理、流式输出 |
-| [限速与稳定性设计](https://josephxzy.github.io/github-proxy/design/rate-limit) | 水位线反压、per-user + global 两层限速 |
+完整文档管理约定见 [docs/README.md](docs/README.md)。
 
 ## License
 

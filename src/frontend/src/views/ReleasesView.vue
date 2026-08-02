@@ -2,11 +2,15 @@
   <main class="flex-1 flex items-start justify-center py-8 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
     <div class="w-full max-w-[1000px] mx-auto">
       <div class="pt-6">
-        <button @click="$emit('back')" class="inline-flex items-center gap-2 px-3 py-1.5 -ml-3 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-500/10 font-medium transition-all mb-6">
+        <button
+          @click="$emit('back')"
+          :title="fromView === 'search' ? '返回搜索结果' : '返回首页'"
+          class="fixed right-4 sm:right-6 top-1/2 -translate-y-1/2 z-[9000] w-11 h-11 flex items-center justify-center rounded-full bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-700 shadow-lg hover:shadow-xl hover:ring-gray-300 dark:hover:ring-gray-600 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 active:scale-95 transition-all"
+        >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m15 18-6-6 6-6"></path>
+            <path d="M19 12H5"></path>
+            <path d="m12 19-7-7 7-7"></path>
           </svg>
-          {{ fromView === 'search' ? '返回搜索结果' : '返回首页' }}
         </button>
 
         <div v-if="loadingReleases" class="text-center py-12">

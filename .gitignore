@@ -30,8 +30,8 @@ src/frontend/dist/
 # =============================
 # 文档站
 # =============================
-docs-site/node_modules/
-docs-site/dist/
+site/node_modules/
+site/dist/
 
 # =============================
 # IDE / 编辑器

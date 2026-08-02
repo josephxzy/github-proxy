@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#147f91" />
+    <meta name="keywords" content="GitHub,代理,加速,反向代理,下载加速,Git加速,github-proxy" />
+    <meta name="author" content="josephxzy" />
+    <meta
+      name="description"
+      content="Github Proxy 是专注于 GitHub 资源加速的轻量级反向代理工具，内置 Vue 3 前端界面，支持仓库搜索、Release 浏览、README 预览、Git 加速、断点续传和双层限速。"
+    />
+    <link rel="canonical" href="https://josephxzy.github.io/github-proxy/" />
+
+    <meta property="og:title" content="Github Proxy · 轻量级 GitHub 资源加速反向代理" />
+    <meta
+      property="og:description"
+      content="专注于 GitHub 资源加速的轻量级反向代理工具，内置 Vue 3 前端界面，支持仓库搜索、Release 浏览、Git 加速。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://josephxzy.github.io/github-proxy/" />
+    <meta property="og:site_name" content="Github Proxy" />
+    <meta property="og:locale" content="zh_CN" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Github Proxy · 轻量级 GitHub 资源加速反向代理" />
+    <meta
+      name="twitter:description"
+      content="专注于 GitHub 资源加速，支持仓库搜索、Release 浏览、Git 加速、断点续传和双层限速。"
+    />
+
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Github Proxy · 轻量级 GitHub 资源加速反向代理</title>
+    <script>
+      (function () {
+        var base = "/github-proxy";
+        var params = new URLSearchParams(window.location.search);
+        var fallbackPath = params.get("p");
+        if (fallbackPath) {
+          var normalizedFallback = fallbackPath.charAt(0) === "/" ? fallbackPath : "/" + fallbackPath;
+          window.history.replaceState(null, "", base + normalizedFallback);
+          return;
+        }
+        if (window.location.hash.indexOf("#/") === 0) {
+          window.history.replaceState(null, "", base + window.location.hash.slice(1));
+        }
+      })();
+    </script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://josephxzy.github.io/github-proxy/#website",
+            "url": "https://josephxzy.github.io/github-proxy/",
+            "name": "Github Proxy",
+            "description": "轻量级 GitHub 资源加速反向代理",
+            "inLanguage": "zh-CN"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://josephxzy.github.io/github-proxy/#software",
+            "name": "Github Proxy",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "Windows, Linux, macOS",
+            "description": "专注于 GitHub 资源加速的轻量级反向代理工具。",
+            "url": "https://github.com/josephxzy/github-proxy",
+            "downloadUrl": "https://github.com/josephxzy/github-proxy/releases/latest",
+            "license": "https://opensource.org/licenses/MIT",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
