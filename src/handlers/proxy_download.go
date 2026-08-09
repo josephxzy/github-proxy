@@ -150,6 +150,16 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 	// 清除安全响应头
 	network.CleanSecurityHeaders(resp.Header)
 
+	// 流式下载启用自动重连：
+	// 暂停时间过长导致 GitHub 掐断空闲连接时，生产者 Read 会报错。
+	// 将响应体包装为 ReconnectingReader，连接断开时自动以
+	// Range: bytes=<已读偏移>- 重新拉取，保证字节流连续，对浏览器透明。
+	if c.Request.Method == "GET" &&
+		(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusPartialContent) &&
+		!ghproxyservice.IsScriptURL(u) {
+		resp.Body = network.NewReconnectingReader(ctx, u, req.Header, resp)
+	}
+
 	// 获取真实的主机名（用于脚本中的 URL 替换）
 	realHost := network.GetRealHost(c.Request)
 
@@ -334,7 +344,7 @@ func writeResponse(c *gin.Context, resp *http.Response, body io.Reader, knownSiz
 	c.Writer.WriteHeaderNow()
 
 	// 开始流式传输数据（带水位线反压）
-	streamToClientWithWaterline(c, body, getDownloadLimiter(c))
+	streamToClientWithWaterline(c, body, getDownloadLimiter(c), resp.Body)
 }
 
 // copyResponseHeaders 将 GitHub 服务器的所有响应头逐个复制到客户端响应中。

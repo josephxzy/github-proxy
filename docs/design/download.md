@@ -113,6 +113,43 @@ func PrefetchContentLength(ctx, url, headers) int64 {
 
 `handlers/response_writer.go` 负责写入客户端。每 64KB flush，数据立即可达。配合水位线反压和双层限速（详见 [限速设计文档](#/docs/rate-limit)）。
 
+## 传输中断自动重连
+
+浏览器暂停下载时连接保持存活，服务端停止读取 GitHub 响应体。暂停时间过长（GitHub/CDN 空闲超时）后，Go 与 GitHub 的连接会被上游掐断；恢复下载时生产者 `Read` 报错，传输中途终止，浏览器只能靠自动重试或手动续传。
+
+`pkg/network/reconnecting_reader.go` 的 `ReconnectingReader` 解决该问题：
+
+```
+生产者 Read 报错（非 EOF）
+    ↓
+以 Range: bytes=<已读绝对偏移>- 重新请求原 URL
+    ↓
+校验：206 + Content-Range 起始偏移一致 + 总大小一致
+    ↓
+切换数据源，继续读取 → 字节流连续，浏览器完全无感
+```
+
+- 包装入口：`handlers/proxy_download.go`（仅 GET、状态码 200/206、非脚本文件）
+- 重连上限 3 次，任何校验失败（服务器忽略 Range、文件变化、偏移不符）都放弃重连，退回原始行为
+- 初始响应为 206（断点续传）时通过 Content-Range 解析绝对起始偏移，重连偏移自动叠加
+- 脚本文件（.sh/.ps1）整体读入内存处理，不参与重连
+
+## 上游连接闲置回收
+
+浏览器暂停后不恢复，代理与 GitHub 的连接会一直空闲占用（上游连接池配额 + 内核缓冲）。`downloadIdleTimeout`（默认 300 秒，`DOWNLOAD_IDLE_TIMEOUT` 环境变量可调）解决该问题：
+
+```
+浏览器暂停 → 客户端无写入进展
+    ↓
+超过 downloadIdleTimeout（默认 300s）→ 主动关闭上游 GitHub 连接
+    ↓
+浏览器连接保留 + 已拉取数据保留（水位线缓冲）
+    ↓
+用户恢复 → 生产者 Read 失败 → ReconnectingReader 自动 Range 重连 → 无缝继续
+```
+
+实现位置：`handlers/response_writer.go` 的 `streamToClientWithWaterline`，通过原子时间戳跟踪最后一次成功写入，看门狗每 10 秒检查一次。`0` 表示禁用该机制。
+
 ## POST 请求（Git Push）
 
 ```go

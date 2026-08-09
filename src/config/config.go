@@ -23,12 +23,13 @@ import (
 type AppConfig struct {
 	// Server 服务器基础配置
 	Server struct {
-		Host           string `toml:"host"`           // 监听地址，默认 "0.0.0.0"
-		Port           int    `toml:"port"`           // 监听端口，默认 5000
-		FileSize       int64  `toml:"fileSize"`       // 单文件最大大小（字节），默认 2GB
-		EnableFrontend bool   `toml:"enableFrontend"` // 是否启用 Web 前端界面，默认 true
-		GitHubToken    string `toml:"githubToken"`    // GitHub Personal Access Token，用于提高 API 速率限制
-		BufferSize     int64  `toml:"bufferSize"`     // 水位线缓冲区大小（字节），默认 8MB
+		Host                string `toml:"host"`                // 监听地址，默认 "0.0.0.0"
+		Port                int    `toml:"port"`                // 监听端口，默认 5000
+		FileSize            int64  `toml:"fileSize"`            // 单文件最大大小（字节），默认 2GB
+		EnableFrontend      bool   `toml:"enableFrontend"`      // 是否启用 Web 前端界面，默认 true
+		GitHubToken         string `toml:"githubToken"`         // GitHub Personal Access Token，用于提高 API 速率限制
+		BufferSize          int64  `toml:"bufferSize"`          // 水位线缓冲区大小（字节），默认 8MB
+		DownloadIdleTimeout int64  `toml:"downloadIdleTimeout"` // 下载停滞超时（秒），客户端超过该时间无写入进展则关闭上游 GitHub 连接，0=禁用，默认 300
 	} `toml:"server"`
 
 	// RateLimit 速率限制配置
@@ -67,19 +68,21 @@ var (
 func DefaultConfig() *AppConfig {
 	return &AppConfig{
 		Server: struct {
-			Host           string `toml:"host"`
-			Port           int    `toml:"port"`
-			FileSize       int64  `toml:"fileSize"`
-			EnableFrontend bool   `toml:"enableFrontend"`
-			GitHubToken    string `toml:"githubToken"`
-			BufferSize     int64  `toml:"bufferSize"`
+			Host                string `toml:"host"`
+			Port                int    `toml:"port"`
+			FileSize            int64  `toml:"fileSize"`
+			EnableFrontend      bool   `toml:"enableFrontend"`
+			GitHubToken         string `toml:"githubToken"`
+			BufferSize          int64  `toml:"bufferSize"`
+			DownloadIdleTimeout int64  `toml:"downloadIdleTimeout"`
 		}{
-			Host:           "0.0.0.0",
-			Port:           5000,
-			FileSize:       2 * 1024 * 1024 * 1024,
-			EnableFrontend: true,
-			GitHubToken:    "",
-			BufferSize:     8 * 1024 * 1024,
+			Host:                "0.0.0.0",
+			Port:                5000,
+			FileSize:            2 * 1024 * 1024 * 1024,
+			EnableFrontend:      true,
+			GitHubToken:         "",
+			BufferSize:          8 * 1024 * 1024,
+			DownloadIdleTimeout: 300,
 		},
 		RateLimit: struct {
 			APISearchHourly      int   `toml:"apiSearchHourly"`
@@ -183,6 +186,8 @@ func LoadConfig() error {
 //	API_REPO_HOURLY      - 仓库 API 每小时限制
 //	API_OTHER_HOURLY     - 其他 API 每小时限制
 //	DOWNLOAD_RATE        - 下载限速（字节/秒），0=不限速
+//	BUFFER_SIZE          - 水位线缓冲区大小（字节）
+//	DOWNLOAD_IDLE_TIMEOUT - 下载停滞超时（秒），客户端长时间无写入进展时关闭上游连接
 //	ACCESS_PROXY         - 上游代理地址
 //	REPO_WHITELIST       - 仓库白名单（逗号分隔）
 //	REPO_BLACKLIST       - 仓库黑名单（逗号分隔）
@@ -206,6 +211,11 @@ func overrideFromEnv(cfg *AppConfig) {
 	if val := os.Getenv("BUFFER_SIZE"); val != "" {
 		if size, err := strconv.ParseInt(val, 10, 64); err == nil && size > 0 {
 			cfg.Server.BufferSize = size
+		}
+	}
+	if val := os.Getenv("DOWNLOAD_IDLE_TIMEOUT"); val != "" {
+		if t, err := strconv.ParseInt(val, 10, 64); err == nil && t >= 0 {
+			cfg.Server.DownloadIdleTimeout = t
 		}
 	}
 	if val := os.Getenv("MAX_FILE_SIZE"); val != "" {

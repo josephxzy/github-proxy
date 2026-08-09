@@ -8,6 +8,10 @@ enableFrontend = true
 # 水位线缓冲区大小（字节），默认 8MB
 # 100Mbps 服务器建议 8MB，500Mbps 建议 16MB，1Gbps 建议 32MB
 bufferSize = 8388608
+# 下载停滞超时（秒）：浏览器暂停后超过该时间仍无写入进展，
+# 主动关闭上游 GitHub 连接释放资源（浏览器连接保留，恢复时自动重连续传）
+# 0 = 禁用，默认 300
+downloadIdleTimeout = 300
 # GitHub Personal Access Token (PAT)，用于服务器端 API 限流
 # 仅在用户未提供 token 时对 api.github.com 请求生效，不影响文件下载
 # 留空则不使用
@@ -37,11 +41,8 @@ whiteList = []
 
 # GitHub仓库黑名单（支持通配符）
 # 禁止访问黑名单中的仓库
-blackList = [
-    "baduser/malicious-repo",
-    "*/malicious-repo",
-    "baduser/*"
-]
+# 示例: blackList = ["baduser/malicious-repo", "baduser/*", "spam-org/*"]
+blackList = []
 
 # 代理配置，支持有用户名/密码认证和无认证模式
 # 无认证: socks5://127.0.0.1:1080

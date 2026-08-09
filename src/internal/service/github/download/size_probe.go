@@ -1,7 +1,6 @@
 package download
 import (
 	"context"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -45,7 +44,6 @@ func RangeProbeSize(ctx context.Context, url string, headers http.Header) int64 
 		return 0
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body)
 
 	switch resp.StatusCode {
 	case http.StatusPartialContent:
