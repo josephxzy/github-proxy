@@ -31,6 +31,7 @@
 |---------|------|--------|
 | `BUFFER_SIZE` | 水位线缓冲区（字节） | `8388608` (8MB) |
 | `MAX_FILE_SIZE` | 单文件最大大小（字节） | `2147483648` (2GB) |
+| `DOWNLOAD_IDLE_TIMEOUT` | 下载停滞超时（秒），浏览器暂停超过该时间自动关闭上游 GitHub 连接，0=禁用 | `300` |
 
 ## API 限流配置
 
@@ -55,26 +56,30 @@
 [server]
 host = "0.0.0.0"
 port = 5000
+# 单文件最大大小（字节），默认 2GB
+fileSize = 2147483648
 enableFrontend = true
+# 水位线缓冲区大小（字节），默认 8MB
+bufferSize = 8388608
+# 下载停滞超时（秒），0=禁用，默认 300
+downloadIdleTimeout = 300
+# 服务器 PAT（API 限流兜底），留空则不使用
+githubToken = ""
 
 [rateLimit]
+apiSearchHourly = 1200
+apiReleaseHourly = 3333
+apiRepoHourly = 3333
+apiOtherHourly = 3333
 downloadBytesPerSec = 0
 globalBytesPerSec = 0
 ipRequestLimit = 0
-bufferSize = 8388608
-maxFileSize = 2147483648
 
 [access]
-accessProxy = ""
-repoWhitelist = []
-repoBlacklist = []
+proxy = ""
+whiteList = []
+blackList = []
 
 [tokenWhiteList]
 tokens = []
-
-[apiLimits]
-searchHourly = 1200
-releaseHourly = 3333
-repoHourly = 3333
-otherHourly = 3333
 ```

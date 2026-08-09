@@ -25,7 +25,11 @@ go test ./src/handlers/
 go test -v ./src/handlers/
 ```
 
-当前测试覆盖：`handlers/waterline_test.go` —— 水位线环形缓冲区的单元测试（写入、读取、暂停/恢复、满时阻塞、关闭后读取 EOF 等场景）。
+当前测试覆盖：
+
+- `internal/waterline/waterline_test.go` —— 水位线环形缓冲区的单元测试（写入、读取、暂停/恢复、满时阻塞、关闭后读取 EOF 等场景）
+- `pkg/network/reconnecting_reader_test.go` —— ReconnectingReader 断线重连的单元测试（偏移校验、重连上限等）
+- `internal/service/github/download/helpers_test.go` —— URL 匹配等工具函数的单元测试
 
 ## 代码规范
 

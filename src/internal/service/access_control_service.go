@@ -3,8 +3,7 @@ package service
 import (
 	"fmt"
 	"net/http"
-
-	"github-proxy/config"
+	"strings"
 )
 
 // AccessControlService 仓库访问控制服务。
@@ -43,8 +42,9 @@ type AccessResult struct {
 //
 // 检查流程：
 //  1. 验证仓库格式有效性（至少需要 owner 和 repo 两部分）
-//  2. 白名单检查（如果配置了白名单，仅白名单中的仓库可通过）
-//  3. 黑名单检查（如果配置了黑名单，黑名单中的仓库被拒绝）
+//  2. 白名单检查：配置了白名单时，命中白名单直接放行（白名单优先），
+//     未命中即拒绝（fail-closed），不再判断黑名单
+//  3. 黑名单检查：未配置白名单时，命中黑名单的仓库被拒绝
 //
 // 参数:
 //   - matches: 从 URL 中匹配到的仓库信息（通常包含 owner 和 repo）
@@ -62,19 +62,20 @@ func (s *AccessControlService) CheckRepoAccess(matches []string) *AccessResult {
 		return result
 	}
 
-	// 获取最新配置（支持热更新）
-	cfg := config.GetConfig()
-
-	// 步骤2：白名单检查（仅当白名单非空时生效）
-	if len(cfg.Access.WhiteList) > 0 && !s.checkList(matches, cfg.Access.WhiteList) {
+	// 步骤2：白名单检查（配置了白名单时白名单优先于黑名单）
+	if len(s.whiteList) > 0 {
+		if s.checkList(matches, s.whiteList) {
+			result.Allowed = true
+			return result
+		}
 		result.Error = fmt.Errorf("not in whitelist")
 		result.ErrorCode = http.StatusForbidden
 		result.ErrorMessage = "不在GitHub仓库白名单内"
 		return result
 	}
 
-	// 步骤3：黑名单检查（仅当黑名单非空时生效）
-	if len(cfg.Access.BlackList) > 0 && s.checkList(matches, cfg.Access.BlackList) {
+	// 步骤3：黑名单检查（仅当未配置白名单时生效）
+	if len(s.blackList) > 0 && s.checkList(matches, s.blackList) {
 		result.Error = fmt.Errorf("in blacklist")
 		result.ErrorCode = http.StatusForbidden
 		result.ErrorMessage = "GitHub仓库在黑名单内"
@@ -91,6 +92,8 @@ func (s *AccessControlService) CheckRepoAccess(matches []string) *AccessResult {
 // 匹配规则：
 //   - 完全匹配："owner/repo" 必须完全相同
 //   - 所有者匹配：仅匹配 "owner"，表示该用户的所有仓库都匹配
+//   - "owner/*"：同 "owner"，匹配该用户的所有仓库
+//   - "prefix*"：前缀匹配，对 "owner/repo" 与 "owner" 均生效
 //
 // 参数:
 //   - matches: 仓库信息数组（[owner, repo, ...]）
@@ -107,9 +110,28 @@ func (s *AccessControlService) checkList(matches []string, list []string) bool {
 	repo := matches[0] + "/" + matches[1]
 
 	for _, item := range list {
-		// 支持两种匹配方式
-		if item == repo || item == matches[0] {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		switch {
+		case item == repo || item == matches[0]:
 			return true
+		case strings.HasSuffix(item, "/*"):
+			// owner/* → 同 owner，匹配该用户的所有仓库
+			if strings.TrimSuffix(item, "/*") == matches[0] {
+				return true
+			}
+		case strings.HasSuffix(item, "*"):
+			// prefix* → 前缀匹配（对 owner/repo 与 owner 均生效）。
+			// 裸 "*"（空前缀）匹配一切，不符合"通配符只能前缀匹配"的约定，跳过。
+			prefix := strings.TrimSuffix(item, "*")
+			if prefix == "" {
+				continue
+			}
+			if strings.HasPrefix(repo, prefix) || strings.HasPrefix(matches[0], prefix) {
+				return true
+			}
 		}
 	}
 	return false

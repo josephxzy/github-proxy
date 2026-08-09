@@ -55,3 +55,36 @@ func TestNormalizeShortGitClonePath(t *testing.T) {
 		}
 	}
 }
+
+// MatchURL 的 owner/repo 提取行为（仓库黑白名单检查依赖该结果）：
+// repos API 与各类仓库下载 URL 必须能提取出 owner/repo；
+// 搜索 API 无仓库标识，应返回 nil 以便调用方放行。
+func TestMatchURLExtraction(t *testing.T) {
+	tests := []struct {
+		url  string
+		want []string
+	}{
+		{"https://api.github.com/search/repositories?q=proxy", nil},
+		{"https://api.github.com/search/code?q=foo", nil},
+		{"https://api.github.com/repos/josephxzy/github-proxy/releases", []string{"josephxzy", "github-proxy"}},
+		{"https://api.github.com/repos/torvalds/linux", []string{"torvalds", "linux"}},
+		{"https://github.com/josephxzy/github-proxy/releases/download/v1.0/x.zip", []string{"josephxzy", "github-proxy"}},
+		{"https://github.com/josephxzy/github-proxy/archive/refs/heads/main.zip", []string{"josephxzy", "github-proxy"}},
+		{"https://github.com/josephxzy/github-proxy/blob/main/README.md", []string{"josephxzy", "github-proxy"}},
+		{"https://raw.githubusercontent.com/josephxzy/github-proxy/main/file.go", []string{"josephxzy", "github-proxy"}},
+		{"https://gist.github.com/josephxzy/abc123", []string{"josephxzy", "abc123"}},
+	}
+	for _, tt := range tests {
+		got := MatchURL(tt.url)
+		if len(got) != len(tt.want) {
+			t.Errorf("MatchURL(%q) = %v, want %v", tt.url, got, tt.want)
+			continue
+		}
+		for i := range got {
+			if got[i] != tt.want[i] {
+				t.Errorf("MatchURL(%q) = %v, want %v", tt.url, got, tt.want)
+				break
+			}
+		}
+	}
+}

@@ -62,6 +62,10 @@ func GitHubProxyHandler(c *gin.Context) {
 	// 步骤1：根据 URL 类型分流处理
 	// API 请求（api.github.com）不需要经过下载模块的 URL 验证
 	if ghproxyservice.IsAPIRequest(rawPath) {
+		// 仓库黑白名单检查（无法提取 owner/repo 的请求如搜索 API 直接放行）
+		if !checkRepoAccess(c, rawPath) {
+			return
+		}
 		ProxyGitHubRequest(c, rawPath)
 		return
 	}
@@ -74,8 +78,43 @@ func GitHubProxyHandler(c *gin.Context) {
 	}
 	rawPath = normalizeResult.NormalizedURL
 
+	// 仓库黑白名单检查
+	if !checkRepoAccess(c, rawPath) {
+		return
+	}
+
 	// 步骤3：分发到对应的处理器
 	ProxyGitHubRequest(c, rawPath)
+}
+
+// checkRepoAccess 执行仓库黑白名单检查。
+// 从 URL 提取 owner/repo，提取失败（如搜索 API、健康检查路径）时放行——
+// 黑白名单仅针对具体仓库的访问，不适用于无仓库标识的请求。
+// 检查失败时写入错误响应并返回 false。
+func checkRepoAccess(c *gin.Context, url string) bool {
+	// 请求路径可能不带 scheme（如 API 分支的 "api.github.com/repos/..."），
+	// 先补全为完整 URL，否则 MatchURL 的正则（要求 ^https?:// 开头）无法匹配。
+	// scheme 统一为小写：既避免大写 scheme（"HTTP://..."）被二次补全成
+	// 无法匹配的 URL，也保证大小写混合 scheme 能通过 MatchURL 的正则匹配。
+	switch {
+	case len(url) >= 7 && strings.EqualFold(url[:7], "http://"):
+		url = "http://" + url[7:]
+	case len(url) >= 8 && strings.EqualFold(url[:8], "https://"):
+		url = "https://" + url[8:]
+	default:
+		url = "https://" + url
+	}
+	matches := ghproxyservice.MatchURL(url)
+	if len(matches) < 2 {
+		return true
+	}
+	result := globalApplication.AccessCtrl.CheckRepoAccess(matches)
+	if !result.Allowed {
+		c.Abort()
+		c.String(result.ErrorCode, result.ErrorMessage)
+		return false
+	}
+	return true
 }
 
 // normalizePath 标准化请求路径

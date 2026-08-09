@@ -38,6 +38,6 @@ user:josephxzy desc:proxy
 ## 搜索限制
 
 - 搜索结果来自 GitHub API，受 API 限流影响
-- 设置 `GITHUB_TOKEN` 可提升 API 限流（从 60 次/小时提升到 5000 次/小时）
+- 设置 `GITHUB_TOKEN` 可提升 GitHub API 限额（普通 REST API 从 60 次/小时提升到 5000 次/小时，搜索 API 从 10 次/分钟提升到 30 次/分钟）
 - 每个搜索请求消耗 1 次 API 限额
 - 可通过 `API_SEARCH_HOURLY` 配置搜索 API 每小时限额

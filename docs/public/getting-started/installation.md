@@ -19,7 +19,7 @@ github-proxy.exe
 
 ### 前置要求
 
-- Go 1.21+
+- Go 1.23+（`src/go.mod` 声明 `go 1.23.0`）
 - Node.js 18+
 
 ### 构建步骤

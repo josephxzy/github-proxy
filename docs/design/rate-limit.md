@@ -218,9 +218,9 @@ resp.Body ──→ producer goroutine ──→ WaterlineBuffer ──→ rateL
 
 | 文件 | 职责 |
 |:---|:---|
-| `handlers/waterline.go` | 真环形缓冲区，80%/20% 暂停/恢复 |
+| `internal/waterline/waterline.go` | 真环形缓冲区，80%/20% 暂停/恢复 |
 | `handlers/response_writer.go` | producer/consumer 双 goroutine |
-| `handlers/rate_limit.go` | 单流漏桶 + global 共享令牌桶 |
+| `internal/ratelimit/ratelimit.go` | 单流漏桶 + global 共享令牌桶 |
 | `pkg/network/http_client_*.go` | `SO_RCVBUF = 4MB`（每连接） |
 
 ## 配置

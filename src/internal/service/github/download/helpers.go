@@ -28,8 +28,10 @@ func IsShortGitHubPath(path string) bool {
 //   - 仓库文件路径（releases/archive/blob/raw/info/git-）——文件下载路径
 //   - 原始内容与 gist 域名（raw.githubusercontent.com、gist.github.com）
 var githubExps = []*regexp.Regexp{
-	// 匹配 GitHub API 端点（search、repos 等）
-	regexp.MustCompile(`^https?://api\.github\.com/(?:search|repos)/.*`),
+	// 匹配 GitHub 搜索 API 端点（无 owner/repo，不捕获）
+	regexp.MustCompile(`^https?://api\.github\.com/search/.*`),
+	// 匹配 GitHub repos API 端点（捕获 owner/repo，供黑白名单检查）
+	regexp.MustCompile(`^https?://api\.github\.com/repos/([^/]+)/([^/]+).*`),
 	// 匹配 releases 和 archive 下载链接
 	regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/(?:releases|archive)/.*`),
 	// 匹配 blob 和 raw 文件查看/下载链接

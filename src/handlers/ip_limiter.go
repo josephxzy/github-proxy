@@ -92,6 +92,7 @@ func isFrontendPath(path string) bool {
 	return path == "/" ||
 		path == "/ready" ||
 		path == "/favicon.ico" ||
+		path == "/favicon.svg" ||
 		strings.HasPrefix(path, "/assets/") ||
 		strings.HasPrefix(path, "/public/")
 }

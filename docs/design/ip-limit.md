@@ -89,10 +89,11 @@ func (l *IPRateLimiter) Middleware() gin.HandlerFunc {
 ```go
 func isFrontendPath(path string) bool {
     return path == "/" ||
-           strings.HasPrefix(path, "/assets/") ||
-           strings.HasPrefix(path, "/public/") ||
            path == "/ready" ||
-           path == "/favicon.ico"
+           path == "/favicon.ico" ||
+           path == "/favicon.svg" ||
+           strings.HasPrefix(path, "/assets/") ||
+           strings.HasPrefix(path, "/public/")
 }
 ```
 

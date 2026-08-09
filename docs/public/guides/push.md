@@ -96,5 +96,5 @@ git config --global url."https://hub.example.com/".insteadOf "https://github.com
 ## 注意事项
 
 - 代理服务器需要有足够的带宽支撑上传流量
-- 大文件上传耗时较长，建议配合 `GLOBAL_RATE` 控制上传带宽、避免影响其他用户的下载体验
+- 大文件上传耗时较长；注意 `GLOBAL_RATE` 限制的是代理返回给客户端的响应流（下载方向），上传数据流（客户端 → GitHub）为直接透传、不受限速，如需限制上传带宽请在 Nginx/网关层控制
 - 私有仓库 Push 必须在 remote URL 中嵌入 PAT，前端 localStorage 中的 Token 对 Git 操作无效

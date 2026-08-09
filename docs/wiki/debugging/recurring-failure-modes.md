@@ -12,7 +12,7 @@ github-proxy 作为代理，同时与客户端、GitHub API、操作系统内核
 
 **根因**：线性缓冲区满时短写，数据丢失。
 
-**排查**：确认 `src/handlers/waterline.go` 使用真环形缓冲区实现。搜索 `copy(b.data[b.writePos:], data)` 残留代码。
+**排查**：确认 `src/internal/waterline/waterline.go` 使用真环形缓冲区实现。搜索 `copy(b.data[b.writePos:], data)` 残留代码。
 
 **不应使用的短期手段**：重试下载——数据丢失是确定性的，重试无效。
 
@@ -56,7 +56,7 @@ proxy_buffering off;
 
 ## 相关模块
 
-- `src/handlers/waterline.go`
+- `src/internal/waterline/waterline.go`
 - `src/handlers/ip_limiter.go`
 - `src/handlers/github.go`
 - `src/handlers/proxy_download.go`
