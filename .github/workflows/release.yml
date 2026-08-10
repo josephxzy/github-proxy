@@ -25,21 +25,21 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: src/frontend/package-lock.json
+          cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
-        working-directory: src/frontend
+        working-directory: web
         run: npm ci
 
       - name: Build frontend
-        working-directory: src/frontend
+        working-directory: web
         run: npm run build
 
       - name: Upload frontend artifacts
         uses: actions/upload-artifact@v6
         with:
           name: frontend-dist
-          path: src/public/
+          path: cmd/github-proxy/public/
           retention-days: 1
 
   # =============================
@@ -67,13 +67,13 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: src/go.sum
+          cache-dependency-path: go.sum
 
       - name: Download frontend artifacts
         uses: actions/download-artifact@v7
         with:
           name: frontend-dist
-          path: src/public/
+          path: cmd/github-proxy/public/
 
       - name: Get version info (统一版本信息)
         id: version
@@ -84,11 +84,9 @@ jobs:
           echo "build_time=${BUILD_TIME}" >> $GITHUB_OUTPUT
 
       - name: Download Go modules
-        working-directory: src
         run: go mod download
 
       - name: Build binary (${{ matrix.suffix }})
-        working-directory: src
         env:
           CGO_ENABLED: 0
           GOOS: ${{ matrix.goos }}
@@ -98,7 +96,7 @@ jobs:
             -X main.Version=${{ steps.version.outputs.version }} \
             -X main.BuildTime=${{ steps.version.outputs.build_time }}"
 
-          go build -ldflags="${LDFLAGS}" -o "../build/github-proxy-${{ matrix.suffix }}" .
+          go build -ldflags="${LDFLAGS}" -o "../build/github-proxy-${{ matrix.suffix }}" ./cmd/github-proxy
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v6

@@ -4,11 +4,14 @@
 
 ## 根目录保留规则
 
-根目录只保留下面几类文件：
+根目录是 Go 模块根（`go.mod`），源码按标准布局组织，只保留下面几类：
 
 - 项目入口与对外说明：`README.md`
-- 构建与工具链配置：`build.ps1`、`build.sh`、`go.mod`、`go.sum`
-- 运行时配置：`src/config.toml`、`.gitignore`
+- Go 模块与构建工具链：`go.mod`、`go.sum`、`build.ps1`、`build.sh`
+- Go 源码（标准布局）：`cmd/github-proxy/`（main 包）、`internal/`（全部私有包）
+- 前端项目：`web/`（Vue 3 源码，产物输出到 `cmd/github-proxy/public/` 供 embed 打包）
+- 文档站：`site/`（React + Vite，内容源在 `docs/public/`）
+- 运行时配置：`config.toml`、`.gitignore`
 
 其余设计稿、阶段总结、模块计划、历史规格，统一进入 `docs/` 对应子目录。
 
@@ -17,6 +20,8 @@
 ### `docs/checkpoints`
 
 用于记录阶段性检查点、架构迁移里程碑、进度审计和对照说明。
+
+- [代码质量重构检查点](./checkpoints/code-quality-refactor.md)：死代码清理、config/handlers 重构与测试补充
 
 ### `docs/plans`
 

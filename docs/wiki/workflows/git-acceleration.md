@@ -41,8 +41,8 @@ git clone https://ghp_xxx@hub.example.com/user/private-repo.git
 
 ## 相关模块
 
-- `src/handlers/github.go` — `ExtractToken`、Basic Auth 解析
-- `src/handlers/proxy_download.go` — POST 请求处理（Git Push）
+- `internal/handlers/github.go` — `ExtractToken`、Basic Auth 解析
+- `internal/handlers/proxy_download.go` — POST 请求处理（Git Push）
 
 ## 来源文档
 

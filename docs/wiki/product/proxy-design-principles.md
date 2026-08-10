@@ -38,5 +38,5 @@ GitHub 灌数据的速度远超用户消费速度。TCP 流控只在网络层，
 
 ## 相关模块
 
-- 所有 `src/handlers/` 模块
-- `src/config/config.go`
+- 所有 `internal/handlers/` 模块
+- `internal/config/config.go`

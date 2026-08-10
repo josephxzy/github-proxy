@@ -27,9 +27,9 @@
 
 ## 相关模块
 
-- `src/handlers/...`
-- `src/config/...`
-- `src/pkg/...`
+- `internal/handlers/...`
+- `internal/config/...`
+- `internal/...`
 
 ## 来源文档
 

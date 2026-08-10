@@ -7,14 +7,13 @@ build/
 *.dll
 *.so
 *.dylib
-src/public/assets/
+cmd/github-proxy/public/assets/
 
 # =============================
 # Go 相关
 # =============================
 # 依赖（如果使用 vendor 模式）
 vendor/
-src/vendor/
 
 # 测试覆盖率
 *.out
@@ -24,8 +23,8 @@ coverage.out
 # 前端相关
 # =============================
 node_modules/
-src/frontend/node_modules/
-src/frontend/dist/
+web/node_modules/
+web/dist/
 
 # =============================
 # 文档站

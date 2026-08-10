@@ -39,10 +39,10 @@ github-proxy 的下载请求是整个系统最复杂的链路，涉及 token 提
 
 ## 相关模块
 
-- `src/handlers/proxy_download.go` — 下载请求入口
-- `src/handlers/response_writer.go` — 流式输出
-- `src/internal/waterline/waterline.go` — 水位线反压
-- `src/internal/ratelimit/ratelimit.go` — 双层限速
+- `internal/handlers/proxy_download.go` — 下载请求入口
+- `internal/handlers/response_writer.go` — 流式输出
+- `internal/waterline/waterline.go` — 水位线反压
+- `internal/ratelimit/ratelimit.go` — 双层限速
 
 ## 来源文档
 

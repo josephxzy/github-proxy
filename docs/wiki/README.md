@@ -22,6 +22,10 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 - [双层限速设计](../design/rate-limit.md)
 - [IP 三层限流体系](../design/ip-limit.md)
 
+工程实现约定：
+
+- [代码分层约定](./architecture/code-layering.md)：handler 直连工具层，不设编排层
+
 ### Workflows
 
 - [Git 加速工作流](./workflows/git-acceleration.md)
