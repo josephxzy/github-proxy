@@ -57,6 +57,48 @@ func TestNormalizeShortGitClonePath(t *testing.T) {
 	}
 }
 
+// IsGitSmartHTTPRequest 的端点判定：git clone/push 的三个端点必须识别，
+// web 下载路径（releases/archive/blob/raw）不能误伤。
+func TestIsGitSmartHTTPRequest(t *testing.T) {
+	tests := []struct {
+		rawPath string
+		want    bool
+	}{
+		// git 智能 HTTP 端点（服务发现 + 数据传输）
+		{"josephxzy/med-ice.git/info/refs?service=git-upload-pack", true},
+		{"josephxzy/med-ice.git/info/refs?service=git-receive-pack", true},
+		{"josephxzy/med-ice.git/info/refs", true},
+		{"josephxzy/med-ice.git/git-upload-pack", true},
+		{"josephxzy/med-ice.git/git-receive-pack", true},
+		{"/josephxzy/med-ice.git/info/refs?service=git-upload-pack", true},
+		{"https://github.com/josephxzy/med-ice.git/info/refs?service=git-upload-pack", true},
+		// 无 .git 后缀的短路径同样识别
+		{"josephxzy/med-ice/info/refs?service=git-upload-pack", true},
+		{"josephxzy/med-ice/git-upload-pack", true},
+		// Git LFS batch 端点
+		{"josephxzy/med-ice.git/info/lfs/objects/batch", true},
+		// web 下载路径不受影响
+		{"josephxzy/med-ice/releases/download/v1.0/file.zip", false},
+		{"josephxzy/med-ice/archive/refs/heads/main.zip", false},
+		{"josephxzy/med-ice/raw/main/script.sh", false},
+		{"josephxzy/med-ice/blob/main/README.md", false},
+		{"josephxzy/med-ice", false},
+		// 文件名恰好等于 git 端点名，不应误伤
+		{"josephxzy/med-ice/releases/download/v1.0/git-upload-pack", false},
+		{"josephxzy/med-ice/blob/main/info/refs", false},
+		{"josephxzy/med-ice/raw/main/git-receive-pack", false},
+		{"josephxzy/med-ice/releases/download/v1.0/info/refs.zip", false},
+		// 相似但不匹配的路径
+		{"josephxzy/med-ice/gitweb", false},
+		{"josephxzy/med-ice/refs/heads/main", false},
+	}
+	for _, tt := range tests {
+		if got := IsGitSmartHTTPRequest(tt.rawPath); got != tt.want {
+			t.Errorf("IsGitSmartHTTPRequest(%q) = %v, want %v", tt.rawPath, got, tt.want)
+		}
+	}
+}
+
 // MatchURL 的 owner/repo 提取行为（仓库黑白名单检查依赖该结果）：
 // repos API 与各类仓库下载 URL 必须能提取出 owner/repo；
 // 搜索 API 无仓库标识，应返回 nil 以便调用方放行。

@@ -72,7 +72,13 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 	if !isRangeRequest && c.Request.Method == "GET" {
 		preflightHeaders := c.Request.Header.Clone()
 		if userToken, ok := c.Get("userToken"); ok {
-			preflightHeaders.Set("Authorization", "token "+userToken.(string))
+			ut := userToken.(string)
+			// git 端点同样只接受 Basic（与 buildUpstreamRequest 保持一致）
+			if ghproxyservice.IsGitSmartHTTPRequest(u) {
+				preflightHeaders.Set("Authorization", ghproxyservice.GitBasicAuthValue(ut))
+			} else {
+				preflightHeaders.Set("Authorization", "token "+ut)
+			}
 		}
 		go func() {
 			preflightCh <- ghproxyservice.PrefetchContentLength(ctx, u, preflightHeaders)

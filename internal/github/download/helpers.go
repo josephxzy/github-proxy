@@ -74,6 +74,32 @@ func IsScriptURL(url string) bool {
 	return strings.HasSuffix(lower, ".sh") || strings.HasSuffix(lower, ".ps1")
 }
 
+// gitSmartHTTPExp 匹配 git 智能 HTTP 端点路径段：
+// info/refs（服务发现，git clone 首请求）、info/lfs（Git LFS batch）、
+// git-upload-pack / git-receive-pack（数据传输）。
+// 只匹配"段首 → 段尾（? / 或结束）"，误伤下载文件名的情况由
+// IsGitSmartHTTPRequest 的下载前缀排除兜底。
+var gitSmartHTTPExp = regexp.MustCompile(`(?:^|/)(?:info/refs|info/lfs|git-upload-pack|git-receive-pack)(?:[?/]|$)`)
+
+// gitDownloadPathPrefixes 下载路径特征段：这些前缀存在时，即使文件名恰好为
+// git 端点名（如 releases/.../git-upload-pack、blob/.../info/refs），也按普通
+// 下载处理——不触发 401 挑战、上游仍用 token 头，避免误伤 web 下载。
+var gitDownloadPathPrefixes = []string{"/releases/", "/archive/", "/blob/", "/raw/"}
+
+// IsGitSmartHTTPRequest 判断请求是否为 git 智能 HTTP 端点。
+// 用于 git clone/push 场景的白名单认证：
+// git 客户端首次请求从不携带凭据（即使 URL 内嵌 token），只有收到 401 后
+// 才会用 URL 凭据重试，因此代理需要对这些端点主动发起认证挑战。
+// rawPath 为原始请求 URI（含 .git 与 query，如 "owner/repo.git/info/refs?service=git-upload-pack"）。
+func IsGitSmartHTTPRequest(rawPath string) bool {
+	for _, p := range gitDownloadPathPrefixes {
+		if strings.Contains(rawPath, p) {
+			return false
+		}
+	}
+	return gitSmartHTTPExp.MatchString(rawPath)
+}
+
 // blobURLExp blob 页面链接的正则表达式模式。
 var blobURLExp = regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/blob/.*`)
 
@@ -148,9 +174,25 @@ func extractTokenFromBasicAuth(r *http.Request) string {
 }
 
 // ApplyUserToken 将用户提供的 Token 应用到上游请求的 Authorization 头。
+// 注意：仅适用于 GitHub API（api.github.com）等接受 "token <PAT>" 头的端点；
+// git 智能 HTTP 端点必须使用 ApplyGitBasicAuth（GitHub 只接受 Basic）。
 func ApplyUserToken(req *http.Request, userToken string) {
 	if userToken != "" {
 		req.Header.Set("Authorization", "token "+userToken)
+	}
+}
+
+// GitBasicAuthValue 构造 GitHub git 智能 HTTP 端点接受的 Basic 认证头值。
+// GitHub 的 git 端点（github.com/owner/repo.git）不接受 "Authorization: token <PAT>"
+// 头（一律 401），只接受 Basic；官方推荐格式为用户名 x-access-token、密码 PAT。
+func GitBasicAuthValue(userToken string) string {
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte("x-access-token:"+userToken))
+}
+
+// ApplyGitBasicAuth 将用户 Token 以 GitHub git 端点接受的 Basic 格式应用到请求头。
+func ApplyGitBasicAuth(req *http.Request, userToken string) {
+	if userToken != "" {
+		req.Header.Set("Authorization", GitBasicAuthValue(userToken))
 	}
 }
 

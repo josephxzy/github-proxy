@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github-proxy/internal/config"
 	ghproxyservice "github-proxy/internal/github"
 	"github-proxy/internal/service"
 
@@ -59,6 +60,15 @@ func TokenAuthMiddleware() gin.HandlerFunc {
 func GitHubProxyHandler(c *gin.Context) {
 	rawPath := normalizePath(c.Request.URL.RequestURI())
 
+	// git 智能 HTTP 端点（git clone/push）强制认证：
+	// git 客户端首次请求从不携带凭据（即使 URL 内嵌 token），只有收到 401 后
+	// 才用 URL 凭据重试。若代理对公共仓库直接透传 200，git 永不发送凭据，
+	// 白名单 token 无法被提取 → 豁免失效 → 白名单用户仍被限速。
+	// 因此配置了 token 白名单时，对未携带凭据的 git 请求返回 401 挑战。
+	if ghproxyservice.IsGitSmartHTTPRequest(c.Request.URL.RequestURI()) && gitAuthRequired(c) {
+		return
+	}
+
 	// 剥离代理专用查询参数（token），不发给 GitHub
 	rawPath = ghproxyservice.StripProxyQueryParams(rawPath)
 
@@ -88,6 +98,26 @@ func GitHubProxyHandler(c *gin.Context) {
 
 	// 步骤3：分发到对应的处理器
 	ProxyGitHubRequest(c, rawPath)
+}
+
+// gitAuthRequired 对未携带任何凭据的 git 智能 HTTP 请求返回 401 挑战，
+// 触发 git 客户端携带 URL 内嵌凭据 / credential helper 凭据重试。
+// 返回 true 表示已写入 401 响应（调用方应停止处理）。
+func gitAuthRequired(c *gin.Context) bool {
+	// 仅当配置了 token 白名单时强制认证：
+	// 白名单为空时匿名 clone 直接放行（行为不变），挑战无意义。
+	if len(config.GetConfig().TokenWhiteList.Tokens) == 0 {
+		return false
+	}
+	if _, ok := c.Get("userToken"); ok {
+		return false // 已携带凭据，正常放行（是否豁免限速由 getDownloadLimiter 判定）
+	}
+	c.Header("WWW-Authenticate", `Basic realm="github-proxy"`)
+	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+		"error":   "authentication required",
+		"message": "请携带 GitHub Token 访问（URL 内嵌 https://TOKEN@host/... 或凭据管理器），白名单 Token 可豁免限速",
+	})
+	return true
 }
 
 // checkRepoAccess 执行仓库黑白名单检查。
@@ -172,7 +202,15 @@ func buildUpstreamRequest(c *gin.Context, method, u string, body io.Reader) (*ht
 
 	// 应用用户提供的 GitHub Token（优先级高于服务器 Token）
 	if userToken, ok := c.Get("userToken"); ok {
-		ghproxyservice.ApplyUserToken(req, userToken.(string))
+		ut := userToken.(string)
+		// git 智能 HTTP 端点（github.com/...git/info/refs、git-upload-pack 等）：
+		// GitHub 只接受 Basic 认证，"Authorization: token <PAT>" 头一律 401。
+		// 统一构造 GitHub 官方推荐的 x-access-token:PAT Basic 格式。
+		if ghproxyservice.IsGitSmartHTTPRequest(u) {
+			ghproxyservice.ApplyGitBasicAuth(req, ut)
+		} else {
+			ghproxyservice.ApplyUserToken(req, ut)
+		}
 	}
 	// 应用服务器 GitHub Token（如果配置了）
 	ghproxyservice.ApplyGitHubToken(req, u)

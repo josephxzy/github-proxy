@@ -54,9 +54,9 @@ func TestBuildUpstreamRequest(t *testing.T) {
 	if got := req.Header.Get("Host"); got != "" {
 		t.Errorf("Host 应被移除, got %q", got)
 	}
-	// 用户 Token 应用
-	if got := req.Header.Get("Authorization"); got != "token ghp_userToken123" {
-		t.Errorf("Authorization = %q, want token ghp_userToken123", got)
+	// 用户 Token 应用：git 智能 HTTP 端点必须用 Basic（GitHub 拒绝 token 头）
+	if got := req.Header.Get("Authorization"); got != "Basic eC1hY2Nlc3MtdG9rZW46Z2hwX3VzZXJUb2tlbjEyMw==" {
+		t.Errorf("Authorization = %q, want Basic x-access-token:ghp_userToken123（git 端点）", got)
 	}
 	// 请求方法与 URL
 	if req.Method != "POST" || req.URL.String() != "https://github.com/owner/repo.git/git-upload-pack" {
@@ -70,6 +70,50 @@ func TestBuildUpstreamRequest(t *testing.T) {
 	body, _ := io.ReadAll(req.Body)
 	if string(body) != "pack-data" {
 		t.Errorf("body = %q, want pack-data", body)
+	}
+}
+
+// TestBuildUpstreamRequestTokenAuth 非 git 端点（API / 文件下载）仍使用
+// "token <PAT>" 头，与 git 端点的 Basic 认证区分。
+func TestBuildUpstreamRequestTokenAuth(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{
+			name: "API 请求",
+			url:  "https://api.github.com/repos/owner/repo",
+			want: "token ghp_userToken123",
+		},
+		{
+			name: "release 下载",
+			url:  "https://github.com/owner/repo/releases/download/v1.0/file.zip",
+			want: "token ghp_userToken123",
+		},
+		{
+			name: "raw 文件",
+			url:  "https://github.com/owner/repo/raw/main/script.sh",
+			want: "token ghp_userToken123",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest("GET", "/", nil)
+			c.Set("userToken", "ghp_userToken123")
+
+			req, err := buildUpstreamRequest(c, "GET", tt.url, nil)
+			if err != nil {
+				t.Fatalf("buildUpstreamRequest 出错: %v", err)
+			}
+			if got := req.Header.Get("Authorization"); got != tt.want {
+				t.Errorf("Authorization = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

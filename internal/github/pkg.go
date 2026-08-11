@@ -48,6 +48,11 @@ func IsScriptURL(url string) bool {
 	return download.IsScriptURL(url)
 }
 
+// IsGitSmartHTTPRequest 判断请求是否为 git 智能 HTTP 端点（git clone/push）。
+func IsGitSmartHTTPRequest(rawPath string) bool {
+	return download.IsGitSmartHTTPRequest(rawPath)
+}
+
 // ApplyGitHubToken 将服务器配置的 GitHub Token 应用到请求头。
 func ApplyGitHubToken(req *http.Request, url string) {
 	download.ApplyGitHubToken(req, url)
@@ -61,6 +66,16 @@ func ExtractToken(r *http.Request, rawPath string) string {
 // ApplyUserToken 将用户提供的 Token 应用到上游请求头。
 func ApplyUserToken(req *http.Request, userToken string) {
 	download.ApplyUserToken(req, userToken)
+}
+
+// GitBasicAuthValue 构造 GitHub git 端点接受的 Basic 认证头值（x-access-token:PAT）。
+func GitBasicAuthValue(userToken string) string {
+	return download.GitBasicAuthValue(userToken)
+}
+
+// ApplyGitBasicAuth 将用户 Token 以 GitHub git 端点接受的 Basic 格式应用到请求头。
+func ApplyGitBasicAuth(req *http.Request, userToken string) {
+	download.ApplyGitBasicAuth(req, userToken)
 }
 
 // StripProxyQueryParams 剥离代理专用查询参数（token）。

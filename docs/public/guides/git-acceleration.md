@@ -12,6 +12,8 @@ git clone https://hub.example.com/user/repo.git
 git clone https://ghp_xxx@hub.example.com/user/private-repo.git
 ```
 
+> **首次请求的 401 挑战**：git 首次请求不带凭据，代理会返回一次 `401` 挑战，git 自动携带 URL 内嵌的 Token 重试，整个过程对用户透明。如果服务端配置了 Token 白名单，匿名 clone 会收到 401 提示——请按上面的方式在 URL 中嵌入 Token（或配置凭据管理器），白名单 Token 可豁免限速。
+
 ## Fetch / Pull
 
 修改已有仓库的 remote URL：
@@ -73,4 +75,4 @@ Windows 上首次 git push 时，Git Credential Manager 会弹出凭据输入窗
 
 - 前端的 Token（localStorage）对 Git 操作无效，终端无法读取浏览器数据
 - Git 操作必须在 remote URL 中单独嵌入 Token
-- 代理会自动从 `Authorization: Basic` 中提取 PAT 并转换为 `token` 格式
+- 代理从 `Authorization: Basic` 提取 PAT，并以 GitHub git 端点接受的 `Basic x-access-token:<PAT>` 格式转发（git 端点不认 `token` 头）

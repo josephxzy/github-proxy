@@ -33,10 +33,26 @@ Git 在 URL 中嵌入凭据时，`https://ghp_xxx@host/repo.git` 会发送 `Basi
 提取到的 token 存入 Gin Context，下游统一应用：
 
 ```go
+// API / 文件下载：GitHub 接受 token 头
 req.Header.Set("Authorization", "token "+token)
+
+// git 智能 HTTP 端点：GitHub 只接受 Basic（token 头一律 401）
+req.Header.Set("Authorization", "Basic "+base64("x-access-token:"+token))
 ```
 
-**一个 token，一种格式，所有请求**。不管原来源是什么，最终都以 `Authorization: token <value>` 发给 GitHub。
+**按端点区分格式**。GitHub 的 API（`api.github.com`）和文件下载接受 `Authorization: token <value>`；但 git 智能 HTTP 端点（`github.com/owner/repo.git` 的 `info/refs`、`git-upload-pack`、`git-receive-pack`）**只接受 Basic**，`Authorization: token <value>` 会被 GitHub 拒绝（401）。git 端点统一构造 GitHub 官方推荐的 `x-access-token:PAT` Basic 格式转发。
+
+## git 首次请求的 401 挑战
+
+git 客户端（即使 URL 内嵌 token）**首次请求从不携带凭据**，只有收到 `401` 后才用 URL 凭据重试：
+
+```
+git clone https://ghp_xxx@host/owner/repo.git
+  → GET /owner/repo.git/info/refs（无 Authorization）→ 代理 401 挑战
+  → git 重试带 Authorization: Basic base64("ghp_xxx:") → 代理提取 token → 放行
+```
+
+因此当配置了 token 白名单时，代理对**未携带凭据**的 git 智能 HTTP 请求返回 `401 + WWW-Authenticate: Basic`，强制 git 携带凭据重试；否则 git 永不发送凭据，白名单豁免永远无法生效（表现为白名单用户仍被限速）。未配置白名单时不做挑战，匿名 clone 行为不变。
 
 ## 服务器 Token（`GITHUB_TOKEN`）
 
@@ -52,15 +68,15 @@ API 请求：
   有用户 token → Authorization: token <user>
   无用户 token → 无 Authorization（匿名）
 
-Git 请求：
-  有用户 token → Authorization: token <user>
-  无用户 token → 无 Authorization（公开仓库）
+Git 请求（git 端点只认 Basic）：
+  有用户 token → Authorization: Basic x-access-token:<user>
+  无用户 token → 无凭据时 401 挑战（配置白名单时），否则无 Authorization
 ```
 
 | | API 请求 | 文件下载 | Git |
 |:---|:---|:---|:---|
-| 无用户 token | `token <server>` | 无（匿名） | 无（公开仓库） |
-| 用户 token 有效 | `token <user>` | `token <user>` | `token <user>` |
+| 无用户 token | `token <server>` | 无（匿名） | 无凭据 → 401 挑战（配白名单时）；匿名放行 |
+| 用户 token 有效 | `token <user>` | `token <user>` | `Basic x-access-token:<user>` |
 | 用户 token 无效 | 重试 → `token <server>` + 前端警告 | 直接 401/403 | 直接 401/403 |
 
 配置方式：`config.toml` → `githubToken` 或环境变量 `GITHUB_TOKEN`。
@@ -83,7 +99,7 @@ Git 请求：
 |:---|:---|:---|
 | 前端浏览 Releases | `X-GitHub-Token` 头 | `Authorization: token <user>` |
 | 新窗口下载文件 | `?token=` 参数 | `Authorization: token <user>` |
-| git clone/push 私有仓库 | `Authorization: Basic`（从 URL 提取） | `Authorization: token <user>` |
+| git clone/push | `Authorization: Basic`（从 URL 提取） | `Basic x-access-token:<user>`（git 端点不认 token 头） |
 | 公开仓库 API 请求 | 无用户 token + 服务器 token | `Authorization: token <server>` |
 | 用户 token 失效 | 服务器 token 兜底重试 | `Authorization: token <server>` |
 | 公开仓库下载 | 无 token | 无 Authorization |
