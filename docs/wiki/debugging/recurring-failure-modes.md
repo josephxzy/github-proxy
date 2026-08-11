@@ -54,6 +54,35 @@ proxy_buffering off;
 
 **修复**：重新生成 GitHub PAT，确保包含 `repo` 权限。
 
+### 6. Git 推送被拒：PAT 权限不足 / 凭据过期（Windows）
+
+**症状**：`git push` 被 GitHub 拒绝，常见两类报错：
+- `refusing to allow a Personal Access Token to create or update workflow .github/workflows/... without workflow scope` —— 推送含 workflow 文件变更时缺 `workflow` scope
+- `remote: Support for password authentication was removed` / 403 —— 凭据过期或用了旧 token
+
+**根因**：Git for Windows 的 `credential.helper=manager`（GCM）缓存了旧 PAT。关键认知：
+- **git 推送只用 GCM 的 `git:https://github.com` 条目**，与 GitHub CLI 的 `gh:https://github.com` 条目（username=`gh-token`）互不相通；
+  只更新凭据管理器里的 `gh-token` 对 git push 无效。
+- PAT 缺 `workflow` scope 时，任何涉及 `.github/workflows/` 的推送都会被拒（细粒度 token 需单独授权 Workflows 权限）。
+
+**排查**：
+```bash
+# 查看 git 实际使用的凭据来源（只显示 username，勿泄露 password）
+printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep username
+```
+
+**修复**：
+```bash
+# 1. 清除旧凭据，强制重新认证
+printf "protocol=https\nhost=github.com\n\n" | git credential reject
+# 或 cmdkey /delete:git:https://github.com
+
+# 2. 重新 push，GCM 会弹出登录窗口，输入带完整权限的 PAT
+git push
+```
+
+**不应使用的短期手段**：反复重试 push（凭据未变结果不变）；只改凭据管理器里的 `gh-token` 条目。
+
 ## 相关模块
 
 - `internal/waterline/waterline.go`
