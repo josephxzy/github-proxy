@@ -182,6 +182,10 @@ const currentPage = ref(1)
 const perPage = 10
 const totalReleases = ref(0)
 const totalPages = ref(0)
+// 精确的 release 总数（0 表示未知）：通过 per_page=1 探测或翻到最后一页时获得，
+// 用于修正「按满页估算」导致的显示偏差（如实际 95 个版本被显示成 100 个）
+const exactTotalReleases = ref(0)
+let fetchingExactTotal = false
 
 onMounted(() => {
   if (props.repoUrl) {
@@ -194,6 +198,9 @@ watch(() => props.repoUrl, (newUrl, oldUrl) => {
     currentPage.value = 1
     totalReleases.value = 0
     totalPages.value = 0
+    exactTotalReleases.value = 0
+    // 取消进行中的总数探测：旧仓库的探测结果不能写入新仓库视图
+    fetchingExactTotal = false
     releasesData.value = []
     fetchReleases()
   }
@@ -248,11 +255,9 @@ const fetchReleases = async (page = 1) => {
     }
 
     const linkHeader = response.headers.get('Link')
-    if (linkHeader) {
-      const lastMatch = linkHeader.match(/page=(\d+)>;\s*rel="last"/)
-      if (lastMatch) {
-        totalPages.value = parseInt(lastMatch[1], 10)
-      }
+    const lastPageFromLink = parseLastPageFromLink(linkHeader)
+    if (lastPageFromLink) {
+      totalPages.value = lastPageFromLink
     }
 
     const data = await response.json()
@@ -262,13 +267,22 @@ const fetchReleases = async (page = 1) => {
       if (totalPages.value) {
         const isLastPage = currentPage.value === totalPages.value
         if (isLastPage) {
+          // 当前已是最后一页：总数可精确计算
           totalReleases.value = (totalPages.value - 1) * perPage + data.length
+          exactTotalReleases.value = totalReleases.value
+        } else if (exactTotalReleases.value) {
+          // 已通过 per_page=1 探测得到精确总数
+          totalReleases.value = exactTotalReleases.value
         } else {
+          // 暂无精确总数：先用「假设最后一页满页」的估算值显示，
+          // 并异步探测精确总数（见 fetchExactTotal），完成后自动修正
           totalReleases.value = (totalPages.value - 1) * perPage + perPage
+          fetchExactTotal(owner, repo)
         }
       } else {
         totalPages.value = currentPage.value
         totalReleases.value = (currentPage.value - 1) * perPage + data.length
+        exactTotalReleases.value = totalReleases.value
       }
     } else {
       throw new Error(data.message || '获取Releases失败')
@@ -278,6 +292,63 @@ const fetchReleases = async (page = 1) => {
     releasesError.value = error.message || '获取Releases失败，请稍后重试'
   } finally {
     loadingReleases.value = false
+  }
+}
+
+// parseLastPageFromLink 从 GitHub 分页 Link 响应头解析最后一页页码。
+// 返回 0 表示没有 rel="last"（说明只有一页）。
+//
+// 注意不能直接用 /page=(\d+)/ 匹配 Link 里的 URL：
+// GitHub 返回的 URL 形如 "?page=81&per_page=10"，其中 per_page 值也含
+// "page=10" 子串且 10 后紧跟 ">"，会被误当成 page 参数（旧实现因此把
+// 页数恒解析成 per_page 的值 10）。这里提取 rel="last" 的完整 URL 后
+// 用 URLSearchParams 精确解析 page 参数，与参数顺序无关。
+const parseLastPageFromLink = (linkHeader) => {
+  if (!linkHeader) return 0
+  const lastMatch = linkHeader.match(/<([^>]+)>;\s*rel="last"/)
+  if (!lastMatch) return 0
+  try {
+    const lastURL = new URL(lastMatch[1], 'https://api.github.com')
+    const page = parseInt(lastURL.searchParams.get('page'), 10)
+    return Number.isInteger(page) && page > 0 ? page : 0
+  } catch (e) {
+    return 0
+  }
+}
+
+// fetchExactTotal 以 per_page=1 探测 release 总数：
+// GitHub 分页 Link 头中 rel="last" 的页码在 per_page=1 时即等于 release 总数，
+// 用它修正「按满页估算」的显示偏差（如实际 95 个版本被显示成 100 个）。
+// 探测失败时静默保留估算值，翻到最后一页时仍会得到精确总数。
+const fetchExactTotal = async (owner, repo) => {
+  if (fetchingExactTotal || exactTotalReleases.value > 0) return
+  const requestedRepoUrl = props.repoUrl
+  fetchingExactTotal = true
+  try {
+    const proxyUrl = '/' + `https://api.github.com/repos/${owner}/${repo}/releases?per_page=1&page=1`
+    const fetchOptions = { cache: 'no-store' }
+    if (props.token) {
+      fetchOptions.headers = { 'X-GitHub-Token': props.token }
+    }
+    const resp = await fetch(proxyUrl, fetchOptions)
+
+    if (resp.headers.get('X-Token-Status') === 'invalid') {
+      markTokenInvalid()
+    }
+
+    if (resp.ok) {
+      const last = parseLastPageFromLink(resp.headers.get('Link'))
+      // 探测期间仓库已切换（watch 会重置 fetchingExactTotal 并触发新探测）：
+      // 丢弃旧仓库的探测结果，避免错误总数写入新仓库视图
+      if (last > 0 && props.repoUrl === requestedRepoUrl) {
+        exactTotalReleases.value = last
+        totalReleases.value = last
+      }
+    }
+  } catch (e) {
+    // 静默：保留估算值
+  } finally {
+    fetchingExactTotal = false
   }
 }
 
