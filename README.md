@@ -25,7 +25,7 @@ export GITHUB_TOKEN=ghp_xxx
 
 ## 文档
 
-完整的部署、配置、使用指南与设计文档，请访问文档站：**https://doc.proxy.xzyuse.site**
+完整的部署、配置、使用指南与设计文档，请访问文档站：**[Github Proxy · 轻量级 GitHub 资源加速反向代理](https://josephxzy.github.io/github-proxy/)**
 
 ## 致谢
 
