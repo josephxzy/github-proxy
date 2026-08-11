@@ -2,13 +2,14 @@
 
 完整的用户可见版本更新说明与发布历史。
 
-## 开发中（next）
+## v1.3.3
 
 - 代码质量重构：清理死代码与重复实现（删除未使用的 `ProxyService` / `DownloadService` / `APIService` 实例层），下载与 API 两条路径统一使用公共上游请求构造
 - 修复：单用户限速器首次写入不等待的时序偏差；IP 限流器禁用实例的 nil map 隐患
 - 目录结构重构：Go 模块根移至仓库根（`cmd/github-proxy` + `internal/*` 标准布局），前端移至 `web/`
-- 补齐单元测试：config、ratelimit、network、脚本处理、API 限流、IP 限流、静态服务
-- CI 新增 `go vet` + `go test` 流水线
+- 测试：新增 config、ratelimit、network、脚本处理、API 限流、IP 限流、静态服务单元测试，以及 mock GitHub 全链路集成测试与 git clone 白名单豁免验证（共 100+ 用例）
+- CI：新增 `go vet` + `go test -race` 流水线
+- 文档：新增代码分层约定、凭据刷新排查、文档站内容更新
 
 ## v1.3.2
 
