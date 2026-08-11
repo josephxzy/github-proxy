@@ -96,7 +96,7 @@ jobs:
             -X main.Version=${{ steps.version.outputs.version }} \
             -X main.BuildTime=${{ steps.version.outputs.build_time }}"
 
-          go build -ldflags="${LDFLAGS}" -o "../build/github-proxy-${{ matrix.suffix }}" ./cmd/github-proxy
+          go build -ldflags="${LDFLAGS}" -o "build/github-proxy-${{ matrix.suffix }}" ./cmd/github-proxy
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v6
