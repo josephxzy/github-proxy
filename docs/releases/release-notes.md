@@ -2,6 +2,13 @@
 
 完整的用户可见版本更新说明与发布历史。
 
+## v1.3.4
+
+- 修复：git clone / push 白名单豁免失效（Web 前端豁免正常但 git 场景被限速）
+  - 根因一：git 客户端首次请求从不携带凭据（即使 URL 内嵌 token），代理对公共仓库透传 200 后 git 永不发送 token，白名单无法命中。修复：配置了 Token 白名单时，对 git 智能 HTTP 端点（`info/refs`、`info/lfs`、`git-upload-pack`、`git-receive-pack`）的无凭据请求返回 401 认证挑战，git 自动携带 URL 内嵌 Token 重试
+  - 根因二：GitHub 的 git 端点只接受 Basic 认证，`Authorization: token` 头一律 401。修复：git 请求统一以 `Basic x-access-token:<PAT>` 格式转发，API 与文件下载仍使用 `token` 头
+- 测试：新增 git 401 挑战链路、git 端点识别（含 Git LFS、下载文件名误伤排除）、上游认证格式区分用例
+
 ## v1.3.3
 
 - 代码质量重构：清理死代码与重复实现（删除未使用的 `ProxyService` / `DownloadService` / `APIService` 实例层），下载与 API 两条路径统一使用公共上游请求构造
