@@ -8,6 +8,7 @@
   - 背景：限速会拉长 git 传输时长、放大上游/中间网络断流的暴露窗口，而 `git-upload-pack` 不支持续传，断连即失败（`early EOF` / `fetch-pack: unexpected disconnect`）；且与 hubproxy 一致，git 场景不做带宽限速
   - 效果：即使配置了 `downloadBytesPerSec` / `globalBytesPerSec`，git 流也按上游速度透传；白名单豁免判断不再作用于 git
   - 保留：release / archive / raw 等文件下载仍按原有限速 + 白名单豁免逻辑
+- 移除：TCP 套接字缓冲调优（下游 `SO_SNDBUF`/ConnState、上游 `SO_RCVBUF`），传输层回归内核默认行为；大流量场景由部署侧内核参数负责（`tcp_wmem` / BBR / 上游中转线路）
 - 测试：新增「git 不限速（即使配置限速）」「非白名单文件下载仍限速」回归用例
 
 ## v1.3.7

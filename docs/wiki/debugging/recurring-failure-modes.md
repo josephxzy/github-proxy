@@ -87,24 +87,28 @@ git push
 
 **症状**：`downloadBytesPerSec`/`globalBytesPerSec` 已设为 0（不限速），但下载速度长期卡在 ~300KB/s，之后可能突然跑满，再跌到几十 KB/s。
 
-**根因**：不是限速器问题，是 TCP 发送窗口瓶颈。Go 的 `net/http` 服务端对 accept 的客户端连接不做任何套接字调优。跨境高延迟链路（RTT 200ms+）下吞吐被发送窗口卡死：
+**根因**：TCP 传输瓶颈，需要区分**上游**（VPS→GitHub）与**下游**（VPS→客户端）两条腿：
+- 上游腿：GitHub 不同主机从国内/香港路由质量差异巨大（实测：release CDN ~2.5MB/s 稳定，codeload ~300KB~1.4MB 抖动，github.com 延迟 ~1.9s）。archive / git 慢速通常就是上游主机拥塞。
+- 下游腿：跨境链路（RTT 200ms+）下 TCP 拥塞控制的典型波形——慢启动窗口不足（~300KB/s）→ cwnd 指数增长灌满链路（突然满速）→ bufferbloat 丢包 → RTO 坍缩到 1 段（~20KB/s）。这是 CUBIC 在丢包路径上的标准行为，与代理代码无关。
 
+**排查**（在 VPS 上交错测，隔离两条腿）：
+```bash
+# ① 上游直连 codeload（archive 实际上游）
+curl -o /dev/null -w "codeload: %{speed_download} B/s\n" --max-time 30 \
+  "https://codeload.github.com/golang/go/zip/refs/heads/master"
+# ② 上游直连 release CDN（对照）
+curl -L -o /dev/null -w "release-cdn: %{speed_download} B/s\n" --max-time 30 \
+  "https://github.com/josephxzy/github-proxy/releases/download/v1.3.7/github-proxy-linux-amd64"
+# ③ 回环走代理（隔离客户端腿：git 流不限速，用白名单 token 或设限速为 0）
+cd /tmp && time git clone "http://TOKEN@127.0.0.1:5001/golang/go.git" x
 ```
-吞吐 ≈ 发送缓冲区 / RTT
-Windows 默认 SO_SNDBUF 64KB → 64KB / 200ms ≈ 300KB/s
-```
 
-（"突然满速"是客户端 TCP 窗口/autotuning 爬升，"再跌到 30KB"是链路丢包导致的拥塞回退——两者都是网络行为，但 300KB 平台期是本服务可消除的。）
+**修复**（部署层，代理代码不再做套接字调优）：
+- 上游腿：`config.toml` 配 `proxy` 让 VPS→GitHub 走优质中转线路；或换 CN2 GIA / CMIN2 等对 GitHub 优化线路的 VPS
+- 下游腿（VPS 是发送端）：开 BBR——`sysctl -w net.core.default_qdisc=fq && sysctl -w net.ipv4.tcp_congestion_control=bbr`，能显著消除 CUBIC 的坍缩波形
+- git clone：v1.3.8 起一律不限速（限速会拉长传输、放大断流窗口，而 git-upload-pack 无续传能力）
 
-**排查**：
-- 确认限速配置确为 0（`config.toml` 的 `downloadBytesPerSec`/`globalBytesPerSec`，或环境变量 `DOWNLOAD_RATE`/`GLOBAL_RATE`）。
-- 用 `tc.SyscallConn().Control` 读 accept 连接的 `SO_SNDBUF`（Windows 修复前为 65536）。
-
-**修复**：`internal/server` 通过 `ConnState` 钩子在连接建立时执行 `tuneClientSocket`（平台相关，见 `socket_windows.go` / `socket_unix.go`）：
-- **Windows**：`SetWriteBuffer(4MB)` + `SetNoDelay(true)`，与上游 `http_client.go` 的 `SO_RCVBUF=4MB` 对齐，吞吐上限提升到 4MB/RTT
-- **Linux/Unix**：只 `SetNoDelay(true)`，**不设置 SO_SNDBUF**——Linux 有 `tcp_wmem` 发送缓冲自动调优（默认上限 4MB），手动设置反而会被 `net.core.wmem_max`（默认 208KB）钳制并关闭自动调优（CI 实测 `SetWriteBuffer(4MB)` 后仅 425984），劣化吞吐。需要更大缓冲时由部署侧调内核参数：`sysctl -w net.core.wmem_max=4194304`
-
-**不应使用的短期手段**：只调大 `BUFFER_SIZE`——水位线缓冲只影响上游预取节奏，治不了下游 TCP 窗口瓶颈。
+**不应使用的短期手段**：只调大 `BUFFER_SIZE`——水位线缓冲只影响上游预取节奏，治不了 TCP 拥塞波形。
 
 ### 8. 测试套件中未认证下载被悄悄限速（全局限速器单例污染）
 

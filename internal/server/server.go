@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"time"
 
@@ -30,8 +29,8 @@ type Server struct {
 //     服务端主动掐断。若部署面向大文件，建议调大或按需设置。
 //   - IdleTimeout: 10分钟 - 空闲连接的超时时间
 //
-// ConnState：每个新连接 accept 时执行 tuneClientSocket（平台相关，见
-// socket_windows.go / socket_unix.go），消除高延迟链路的吞吐瓶颈。
+// 传输层套接字不做应用层调优（SO_SNDBUF/SO_RCVBUF/Nagle 均用内核默认）：
+// 大流量场景由部署侧内核参数负责（如 sysctl tcp_wmem / BBR）。
 func NewServer(cfg *config.AppConfig, router http.Handler) *Server {
 	// 组合监听地址和端口
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
@@ -43,11 +42,6 @@ func NewServer(cfg *config.AppConfig, router http.Handler) *Server {
 			ReadTimeout:  5 * time.Minute,  // 读取超时
 			WriteTimeout: 30 * time.Minute, // 写入超时（大文件下载需要较长时间）
 			IdleTimeout:  10 * time.Minute, // 空闲超时
-			ConnState: func(conn net.Conn, state http.ConnState) {
-				if state == http.StateNew {
-					tuneClientSocket(conn)
-				}
-			},
 		},
 		config: cfg,
 	}
