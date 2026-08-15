@@ -83,9 +83,39 @@ git push
 
 **不应使用的短期手段**：反复重试 push（凭据未变结果不变）；只改凭据管理器里的 `gh-token` 条目。
 
+### 7. 不限速仍卡速（300KB/s 平台期 / 忽满忽低）
+
+**症状**：`downloadBytesPerSec`/`globalBytesPerSec` 已设为 0（不限速），但下载速度长期卡在 ~300KB/s，之后可能突然跑满，再跌到几十 KB/s。
+
+**根因**：不是限速器问题，是 TCP 发送窗口瓶颈。Go 的 `net/http` 服务端对 accept 的客户端连接不做任何套接字调优，Windows/Linux 默认 `SO_SNDBUF` 仅 64KB。跨境高延迟链路（RTT 200ms+）下吞吐被窗口卡死：
+
+```
+吞吐 ≈ 发送缓冲区 / RTT = 64KB / 200ms ≈ 300KB/s
+```
+
+（"突然满速"是客户端 TCP 窗口/autotuning 爬升，"再跌到 30KB"是链路丢包导致的拥塞回退——两者都是网络行为，但 300KB 平台期是本服务可消除的。）
+
+**排查**：
+- 确认限速配置确为 0（`config.toml` 的 `downloadBytesPerSec`/`globalBytesPerSec`，或环境变量 `DOWNLOAD_RATE`/`GLOBAL_RATE`）。
+- 用 `tc.SyscallConn().Control` 读 accept 连接的 `SO_SNDBUF`（修复前为 65536）。
+
+**修复**：`internal/server/server.go` 的 `NewServer` 通过 `ConnState` 钩子在连接建立时放大下游发送缓冲区（`SetWriteBuffer(4MB)`）并禁用 Nagle（`SetNoDelay(true)`），与上游 `http_client.go` 的 `SO_RCVBUF=4MB` 对齐。修复后吞吐上限提升到 4MB/RTT。
+
+**不应使用的短期手段**：只调大 `BUFFER_SIZE`——水位线缓冲只影响上游预取节奏，治不了下游 TCP 窗口瓶颈。
+
+### 8. 测试套件中未认证下载被悄悄限速（全局限速器单例污染）
+
+**症状**：`go test ./...` 中排在 `TestGitCloneWhitelistThrottleExempt`（`GLOBAL_RATE=2000`）之后的下载用例变慢或超时。
+
+**根因**：`ratelimit.GetGlobalLimiter()` 曾用 `sync.Once` 把首次调用时的配置速率永久固化。测试切换环境变量重载配置后，单例仍按旧速率限速，后续每个未认证下载都被 2KB/s 卡死。
+
+**修复**：`GetGlobalLimiter()` 改为互斥锁懒初始化，并随 `config.GetConfig()` 的当前速率变化自动重建限速器。
+
 ## 相关模块
 
 - `internal/waterline/waterline.go`
 - `internal/handlers/ip_limiter.go`
 - `internal/handlers/github.go`
 - `internal/handlers/proxy_download.go`
+- `internal/server/server.go`
+- `internal/ratelimit/ratelimit.go`

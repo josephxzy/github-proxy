@@ -5,6 +5,8 @@ import (
 	"io"
 	"testing"
 	"time"
+
+	"github-proxy/internal/config"
 )
 
 // TestUserLimiterDisabled 限速值为 0 时应完全不限速（wait 立即返回）。
@@ -134,5 +136,40 @@ func TestNewGlobalLimiterDefaults(t *testing.T) {
 	}
 	if g.tokens != 5000 {
 		t.Errorf("初始 tokens = %v, want 5000", g.tokens)
+	}
+}
+
+// TestGlobalLimiterTracksConfig 单例限速器必须跟随配置变化重建，
+// 而不能用 sync.Once 把首次调用时的速率永久固化。
+// 回归场景：测试套件中先以 GLOBAL_RATE=2000 初始化单例后，
+// 后续不限速（0）配置的用例仍被 2KB/s 悄悄限速。
+func TestGlobalLimiterTracksConfig(t *testing.T) {
+	t.Setenv("GLOBAL_RATE", "2000")
+	if err := config.LoadConfig(); err != nil {
+		t.Fatalf("LoadConfig 失败: %v", err)
+	}
+	g1 := GetGlobalLimiter()
+	if g1.rate != 2000 {
+		t.Fatalf("首次 GetGlobalLimiter rate = %v, want 2000", g1.rate)
+	}
+
+	// 切换为不限速配置：单例必须重建为 rate=0
+	t.Setenv("GLOBAL_RATE", "0")
+	if err := config.LoadConfig(); err != nil {
+		t.Fatalf("LoadConfig 失败: %v", err)
+	}
+	g2 := GetGlobalLimiter()
+	if g2.rate != 0 {
+		t.Fatalf("配置切换后 GetGlobalLimiter rate = %v, want 0（不限速）", g2.rate)
+	}
+	if g2 == g1 {
+		t.Error("配置变化后应重建限速器实例")
+	}
+
+	// 重建后等待应零耗时
+	start := time.Now()
+	g2.wait(1024 * 1024)
+	if elapsed := time.Since(start); elapsed > 50*time.Millisecond {
+		t.Errorf("重建后 wait(1MB) 耗时 %v，应接近 0", elapsed)
 	}
 }

@@ -18,19 +18,27 @@ import (
 
 var (
 	globalLimiter     *GlobalLimiter
-	globalLimiterOnce sync.Once
+	globalLimiterRate int64
+	globalLimiterMu   sync.Mutex
 )
 
-// initGlobalLimiter 根据当前配置初始化全局限速器（只执行一次）。
-// 使用 sync.Once 保证并发安全，首次调用 GetGlobalLimiter 时触发。
-func initGlobalLimiter() {
-	cfg := config.GetConfig()
-	globalLimiter = NewGlobalLimiter(cfg.RateLimit.GlobalBytesPerSec)
-}
-
 // GetGlobalLimiter 获取全局限速器实例（懒初始化，线程安全）。
+//
+// 与配置联动：当配置的 GlobalBytesPerSec 变化时自动重建限速器。
+// 不能使用 sync.Once 把首次调用时的速率永久固化——否则配置一变
+// （测试切换环境变量、运行期热加载），后续所有未认证下载都会一直
+// 按旧速率限速。典型事故：测试套件中先跑 GLOBAL_RATE=2000 的用例，
+// 单例被固化为 2KB/s，之后每个未认证大文件下载都被悄悄卡死在 2KB/s。
 func GetGlobalLimiter() *GlobalLimiter {
-	globalLimiterOnce.Do(initGlobalLimiter)
+	cfg := config.GetConfig()
+	rate := cfg.RateLimit.GlobalBytesPerSec
+
+	globalLimiterMu.Lock()
+	defer globalLimiterMu.Unlock()
+	if globalLimiter == nil || globalLimiterRate != rate {
+		globalLimiter = NewGlobalLimiter(rate)
+		globalLimiterRate = rate
+	}
 	return globalLimiter
 }
 
