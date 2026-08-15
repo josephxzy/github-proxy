@@ -6,9 +6,10 @@ import (
 )
 
 // TestTuneClientSocket 验证下游连接调优确实生效：
-// 1) SO_SNDBUF 被放大到至少 1MB（修复前 Windows 默认仅 64KB，
-//    高延迟链路下吞吐被卡在 64KB/RTT ≈ 300KB/s）
-// 2) TCP_NODELAY 已启用（Nagle 关闭）
+// 1) TCP_NODELAY 已启用（Nagle 关闭）——所有平台
+// 2) SO_SNDBUF 不低于平台下限——Windows 上被放大到 4MB（修复前默认
+//    64KB，高延迟链路下吞吐被卡在 64KB/RTT ≈ 300KB/s）；Linux 上保持
+//    内核默认/自动调优（手动设置会被 wmem_max 钳制且关闭自动调优，故不设）
 func TestTuneClientSocket(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -41,8 +42,8 @@ func TestTuneClientSocket(t *testing.T) {
 
 	r := <-done
 	t.Logf("tuned socket: SO_SNDBUF=%d, TCP_NODELAY=%d", r.sndBuf, r.delay)
-	if r.sndBuf < 1024*1024 {
-		t.Errorf("SO_SNDBUF = %d, 期望 >= 1MB（修复前默认 64KB 会把高延迟下载卡在 ~300KB/s）", r.sndBuf)
+	if r.sndBuf < minSendBuffer() {
+		t.Errorf("SO_SNDBUF = %d, 期望 >= %d（平台下限）", r.sndBuf, minSendBuffer())
 	}
 	if r.delay != 1 {
 		t.Errorf("TCP_NODELAY = %d, 期望 1（已禁用 Nagle）", r.delay)

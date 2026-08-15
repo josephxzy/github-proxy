@@ -87,19 +87,22 @@ git push
 
 **症状**：`downloadBytesPerSec`/`globalBytesPerSec` 已设为 0（不限速），但下载速度长期卡在 ~300KB/s，之后可能突然跑满，再跌到几十 KB/s。
 
-**根因**：不是限速器问题，是 TCP 发送窗口瓶颈。Go 的 `net/http` 服务端对 accept 的客户端连接不做任何套接字调优，Windows/Linux 默认 `SO_SNDBUF` 仅 64KB。跨境高延迟链路（RTT 200ms+）下吞吐被窗口卡死：
+**根因**：不是限速器问题，是 TCP 发送窗口瓶颈。Go 的 `net/http` 服务端对 accept 的客户端连接不做任何套接字调优。跨境高延迟链路（RTT 200ms+）下吞吐被发送窗口卡死：
 
 ```
-吞吐 ≈ 发送缓冲区 / RTT = 64KB / 200ms ≈ 300KB/s
+吞吐 ≈ 发送缓冲区 / RTT
+Windows 默认 SO_SNDBUF 64KB → 64KB / 200ms ≈ 300KB/s
 ```
 
 （"突然满速"是客户端 TCP 窗口/autotuning 爬升，"再跌到 30KB"是链路丢包导致的拥塞回退——两者都是网络行为，但 300KB 平台期是本服务可消除的。）
 
 **排查**：
 - 确认限速配置确为 0（`config.toml` 的 `downloadBytesPerSec`/`globalBytesPerSec`，或环境变量 `DOWNLOAD_RATE`/`GLOBAL_RATE`）。
-- 用 `tc.SyscallConn().Control` 读 accept 连接的 `SO_SNDBUF`（修复前为 65536）。
+- 用 `tc.SyscallConn().Control` 读 accept 连接的 `SO_SNDBUF`（Windows 修复前为 65536）。
 
-**修复**：`internal/server/server.go` 的 `NewServer` 通过 `ConnState` 钩子在连接建立时放大下游发送缓冲区（`SetWriteBuffer(4MB)`）并禁用 Nagle（`SetNoDelay(true)`），与上游 `http_client.go` 的 `SO_RCVBUF=4MB` 对齐。修复后吞吐上限提升到 4MB/RTT。
+**修复**：`internal/server` 通过 `ConnState` 钩子在连接建立时执行 `tuneClientSocket`（平台相关，见 `socket_windows.go` / `socket_unix.go`）：
+- **Windows**：`SetWriteBuffer(4MB)` + `SetNoDelay(true)`，与上游 `http_client.go` 的 `SO_RCVBUF=4MB` 对齐，吞吐上限提升到 4MB/RTT
+- **Linux/Unix**：只 `SetNoDelay(true)`，**不设置 SO_SNDBUF**——Linux 有 `tcp_wmem` 发送缓冲自动调优（默认上限 4MB），手动设置反而会被 `net.core.wmem_max`（默认 208KB）钳制并关闭自动调优（CI 实测 `SetWriteBuffer(4MB)` 后仅 425984），劣化吞吐。需要更大缓冲时由部署侧调内核参数：`sysctl -w net.core.wmem_max=4194304`
 
 **不应使用的短期手段**：只调大 `BUFFER_SIZE`——水位线缓冲只影响上游预取节奏，治不了下游 TCP 窗口瓶颈。
 

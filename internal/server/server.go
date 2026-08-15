@@ -10,28 +10,6 @@ import (
 	"github-proxy/internal/config"
 )
 
-// clientSocketSendBuffer 客户端（下游）TCP 发送缓冲区大小。
-// Go 的 net/http 服务端对 accept 的连接不做任何套接字调优，Windows/Linux
-// 默认 SO_SNDBUF 仅 64KB。大文件下载经高延迟链路（如跨境 RTT 200ms+）时，
-// 吞吐被发送窗口卡死：64KB / 200ms ≈ 300KB/s——这正是"不限速仍卡 300KB"
-// 的根因。此处与上游连接（http_client 中 SO_RCVBUF=4MB）对齐，把发送窗口
-// 抬到 4MB，使吞吐上限提升到 4MB/RTT（200ms 时约 20MB/s）。
-const clientSocketSendBuffer = 4 * 1024 * 1024
-
-// tuneClientSocket 在连接建立时调整下游 TCP 参数：
-//   - SO_SNDBUF：见 clientSocketSendBuffer 注释，消除高延迟路径的窗口瓶颈
-//   - TCP_NODELAY：禁用 Nagle，避免小包与延迟 ACK 交互造成额外停顿
-//
-// net/http 服务端默认对 accept 的连接两者都不设置，必须在此显式调优。
-func tuneClientSocket(conn net.Conn) {
-	tc, ok := conn.(*net.TCPConn)
-	if !ok {
-		return
-	}
-	tc.SetWriteBuffer(clientSocketSendBuffer)
-	tc.SetNoDelay(true)
-}
-
 // Server HTTP 服务器封装。
 // 封装 Go 标准库的 http.Server，提供简洁的启动和关闭接口
 type Server struct {
@@ -52,8 +30,8 @@ type Server struct {
 //     服务端主动掐断。若部署面向大文件，建议调大或按需设置。
 //   - IdleTimeout: 10分钟 - 空闲连接的超时时间
 //
-// ConnState：每个新连接 accept 时执行 tuneClientSocket，
-// 放大下游发送缓冲区并禁用 Nagle（消除高延迟链路的吞吐瓶颈）。
+// ConnState：每个新连接 accept 时执行 tuneClientSocket（平台相关，见
+// socket_windows.go / socket_unix.go），消除高延迟链路的吞吐瓶颈。
 func NewServer(cfg *config.AppConfig, router http.Handler) *Server {
 	// 组合监听地址和端口
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
