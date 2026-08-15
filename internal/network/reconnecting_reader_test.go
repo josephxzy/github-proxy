@@ -56,7 +56,7 @@ func TestReconnectingReader_MidStreamDrop(t *testing.T) {
 		t.Fatalf("initial request failed: %v", err)
 	}
 
-	rr := NewReconnectingReader(context.Background(), srv.URL, resp.Request.Header, resp)
+	rr := NewReconnectingReader(context.Background(), srv.URL, resp.Request.Header, resp, false)
 	got, err := io.ReadAll(rr)
 	if err != nil {
 		t.Fatalf("ReadAll failed: %v", err)
@@ -101,8 +101,94 @@ func TestReconnectingReader_ServerIgnoresRange(t *testing.T) {
 		t.Fatalf("initial request failed: %v", err)
 	}
 
-	rr := NewReconnectingReader(context.Background(), srv.URL, resp.Request.Header, resp)
+	rr := NewReconnectingReader(context.Background(), srv.URL, resp.Request.Header, resp, false)
 	if _, err := io.ReadAll(rr); err == nil {
 		t.Fatal("expected error when server ignores Range, got nil")
+	}
+}
+
+// TestReconnectingReader_SkipResume 服务器忽略 Range（如 codeload 返回 200 全量）
+// 且启用 skipResume（归档 URL）时：重连后整包重拉、跳过已发字节，
+// 输出字节流仍连续完整——下载不再因上游断连而失败。
+func TestReconnectingReader_SkipResume(t *testing.T) {
+	InitHTTPClients()
+
+	data := make([]byte, 200*1024)
+	for i := range data {
+		data[i] = byte(i % 251)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Range") == "" {
+			// 首次请求：写出一部分后强制中断连接
+			w.Header().Set("Content-Length", fmt.Sprint(len(data)))
+			w.WriteHeader(http.StatusOK)
+			w.Write(data[:64*1024])
+			if hj, ok := w.(http.Hijacker); ok {
+				conn, _, _ := hj.Hijack()
+				conn.Close()
+			}
+			return
+		}
+		// 忽略 Range，返回 200 全量（codeload 行为）
+		w.Header().Set("Content-Length", fmt.Sprint(len(data)))
+		w.WriteHeader(http.StatusOK)
+		w.Write(data)
+	}))
+	defer srv.Close()
+
+	resp, err := GetGlobalHTTPClient().Get(srv.URL)
+	if err != nil {
+		t.Fatalf("initial request failed: %v", err)
+	}
+
+	rr := NewReconnectingReader(context.Background(), srv.URL, resp.Request.Header, resp, true)
+	got, err := io.ReadAll(rr)
+	if err != nil {
+		t.Fatalf("skip-resume 后 ReadAll 失败: %v", err)
+	}
+	if len(got) != len(data) {
+		t.Fatalf("输出长度 = %d, want %d", len(got), len(data))
+	}
+	if string(got) != string(data) {
+		t.Error("skip-resume 后字节流不连续（出现重复或缺失）")
+	}
+	if rr.retries != 1 {
+		t.Errorf("重连次数 = %d, want 1", rr.retries)
+	}
+}
+
+// TestReconnectingReader_SkipResumeDisabled 服务器忽略 Range 且未启用 skipResume
+// （非归档 URL）时保持放弃行为：返回原始错误，不产生字节流重复。
+func TestReconnectingReader_SkipResumeDisabled(t *testing.T) {
+	InitHTTPClients()
+
+	data := make([]byte, 100*1024)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Range") == "" {
+			w.Header().Set("Content-Length", fmt.Sprint(len(data)))
+			w.WriteHeader(http.StatusOK)
+			w.Write(data[:32*1024])
+			if hj, ok := w.(http.Hijacker); ok {
+				conn, _, _ := hj.Hijack()
+				conn.Close()
+			}
+			return
+		}
+		// 忽略 Range，返回 200 全量
+		w.Header().Set("Content-Length", fmt.Sprint(len(data)))
+		w.WriteHeader(http.StatusOK)
+		w.Write(data)
+	}))
+	defer srv.Close()
+
+	resp, err := GetGlobalHTTPClient().Get(srv.URL)
+	if err != nil {
+		t.Fatalf("initial request failed: %v", err)
+	}
+
+	rr := NewReconnectingReader(context.Background(), srv.URL, resp.Request.Header, resp, false)
+	if _, err := io.ReadAll(rr); err == nil {
+		t.Fatal("未启用 skipResume 时忽略 Range 的服务器应返回错误，got nil")
 	}
 }

@@ -245,6 +245,41 @@ func TestProxyAPIRequestIntegration(t *testing.T) {
 	}
 }
 
+// TestProxyDownloadArchiveNoPreflight 归档请求（最终走忽略 Range 的 codeload）
+// 不触发 Range 预检（预检拿不到 Content-Range、纯浪费），数据完整透传。
+func TestProxyDownloadArchiveNoPreflight(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	SetApplication(service.NewApplication(config.DefaultConfig()))
+
+	preflightSeen := false
+	withMockGitHub(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Range") == "bytes=0-0" {
+			preflightSeen = true
+			w.Header().Set("Content-Length", "4")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("full"))
+			return
+		}
+		// 归档响应（codeload 风格）：无 Content-Length、chunked
+		w.Header().Set("Content-Type", "application/zip")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("PK\x03\x04archive-data"))
+	})
+
+	c, w := newProxyContext("GET", "/https://github.com/owner/repo/archive/refs/heads/main.zip")
+	GitHubProxyHandler(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("状态码 = %d, want 200 (body=%s)", w.Code, w.Body.String())
+	}
+	if w.Body.String() != "PK\x03\x04archive-data" {
+		t.Errorf("body = %q, want 归档内容", w.Body.String())
+	}
+	if preflightSeen {
+		t.Error("归档请求不应触发 Range 预检（codeload 忽略 Range，预检无意义）")
+	}
+}
+
 // TestProxyDownloadInvalidURL 非法 GitHub URL 应被 URL 规范化拒绝（403）。
 func TestProxyDownloadInvalidURL(t *testing.T) {
 	gin.SetMode(gin.TestMode)

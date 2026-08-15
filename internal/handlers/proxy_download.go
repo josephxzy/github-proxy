@@ -72,16 +72,17 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 	// git 智能 HTTP 请求（info/refs、git-upload-pack 等）跳过：
 	// git 协议响应是流式的（git-upload-pack 无 CL、不支持 Range），
 	// 预检无意义且浪费一次上游请求。
-	if !isRangeRequest && c.Request.Method == "GET" && !ghproxyservice.IsGitSmartHTTPRequest(u) {
+	// 归档请求（archive/zipball/tarball，最终走 codeload）跳过：
+	// codeload 忽略 Range 一律返回 200 全量，预检拿不到 Content-Range，
+	// 同样无意义且浪费一次上游请求。
+	if !isRangeRequest && c.Request.Method == "GET" &&
+		!ghproxyservice.IsGitSmartHTTPRequest(u) &&
+		!ghproxyservice.IsArchiveURL(u) {
 		preflightHeaders := c.Request.Header.Clone()
-		if userToken, ok := c.Get("userToken"); ok {
-			ut := userToken.(string)
-			// git 端点同样只接受 Basic（与 buildUpstreamRequest 保持一致）
-			if ghproxyservice.IsGitSmartHTTPRequest(u) {
-				preflightHeaders.Set("Authorization", ghproxyservice.GitBasicAuthValue(ut))
-			} else {
-				preflightHeaders.Set("Authorization", "token "+ut)
-			}
+		if v, ok := c.Get("userToken"); ok {
+			// 注意：本分支已排除 git 端点（见上方条件），
+			// 归档/普通下载均使用 token 头。
+			preflightHeaders.Set("Authorization", "token "+v.(string))
 		}
 		go func() {
 			preflightCh <- ghproxyservice.PrefetchContentLength(ctx, u, preflightHeaders)
@@ -101,9 +102,11 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 	defer resp.Body.Close()
 
 	// 等待并发预检结果（与实际下载请求并行）
-	// 断点续传模式跳过预检等待；git 智能 HTTP 请求不启动预检
+	// 断点续传模式跳过预检等待；git 智能 HTTP / 归档请求不启动预检
 	// （见上方启动条件），此处必须同步排除，否则会永久阻塞在空通道。
-	if !isRangeRequest && c.Request.Method == "GET" && !ghproxyservice.IsGitSmartHTTPRequest(u) {
+	if !isRangeRequest && c.Request.Method == "GET" &&
+		!ghproxyservice.IsGitSmartHTTPRequest(u) &&
+		!ghproxyservice.IsArchiveURL(u) {
 		select {
 		case preflightSize = <-preflightCh:
 		case <-ctx.Done():
@@ -133,8 +136,10 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 
 	// 流式下载启用自动重连：
 	// 暂停时间过长导致 GitHub 掐断空闲连接时，生产者 Read 会报错。
-	// 将响应体包装为 ReconnectingReader，连接断开时自动以
-	// Range: bytes=<已读偏移>- 重新拉取，保证字节流连续，对浏览器透明。
+	// 将响应体包装为 ReconnectingReader，连接断开时自动重连，保证
+	// 字节流连续，对浏览器透明：
+	//   - 支持 Range 的上游（release CDN、raw）→ 按偏移续传
+	//   - 忽略 Range 的归档上游（codeload）→ 整包重拉 + 跳过已发字节
 	// git 智能 HTTP 请求排除：其响应已走直连透传（见 writeResponse），
 	// 不经过水位线缓冲；且 git-upload-pack 为 POST 流式响应、不支持
 	// Range 重连（GET info/refs 虽支持 Range 但响应极小），无需包装。
@@ -142,7 +147,7 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 		(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusPartialContent) &&
 		!ghproxyservice.IsScriptURL(u) &&
 		!ghproxyservice.IsGitSmartHTTPRequest(u) {
-		resp.Body = network.NewReconnectingReader(ctx, u, req.Header, resp)
+		resp.Body = network.NewReconnectingReader(ctx, u, req.Header, resp, ghproxyservice.IsArchiveURL(u))
 	}
 
 	// 获取真实的主机名（用于脚本中的 URL 替换）

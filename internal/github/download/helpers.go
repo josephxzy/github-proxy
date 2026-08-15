@@ -74,6 +74,21 @@ func IsScriptURL(url string) bool {
 	return strings.HasSuffix(lower, ".sh") || strings.HasSuffix(lower, ".ps1")
 }
 
+// IsArchiveURL 判断 URL 是否为 GitHub 源码归档（archive / zipball / tarball）。
+// 归档最终由 codeload.github.com 提供服务（github.com 与 api.github.com
+// 的 archive 链接都会 302 到 codeload）。codeload 忽略 Range 请求头
+// （对 Range 一律返回 200 全量），因此：
+//   - 断连后无法按偏移续传，只能整包重拉 + 跳过已发字节（skip-resume）；
+//   - Range 预检对归档无意义（拿不到 Content-Range），应跳过。
+func IsArchiveURL(url string) bool {
+	lower := strings.ToLower(url)
+	return strings.Contains(lower, "codeload.github.com") ||
+		strings.Contains(lower, "legacy.zip") ||
+		strings.Contains(lower, "/archive/") ||
+		strings.Contains(lower, "/zipball/") ||
+		strings.Contains(lower, "/tarball/")
+}
+
 // gitSmartHTTPExp 匹配 git 智能 HTTP 端点路径段：
 // info/refs（服务发现，git clone 首请求）、info/lfs（Git LFS batch）、
 // git-upload-pack / git-receive-pack（数据传输）。

@@ -48,6 +48,12 @@ func IsScriptURL(url string) bool {
 	return download.IsScriptURL(url)
 }
 
+// IsArchiveURL 判断 URL 是否为 GitHub 源码归档（archive/zipball/tarball，
+// 最终由忽略 Range 的 codeload 提供服务）。
+func IsArchiveURL(url string) bool {
+	return download.IsArchiveURL(url)
+}
+
 // IsGitSmartHTTPRequest 判断请求是否为 git 智能 HTTP 端点（git clone/push）。
 func IsGitSmartHTTPRequest(rawPath string) bool {
 	return download.IsGitSmartHTTPRequest(rawPath)
