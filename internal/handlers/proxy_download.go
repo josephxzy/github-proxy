@@ -68,8 +68,11 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 	var preflightSize int64
 	preflightCh := make(chan int64, 1)
 
-	// 对于非断点续传的 GET 请求，启动并发的 Range 预检
-	if !isRangeRequest && c.Request.Method == "GET" {
+	// 对于非断点续传的 GET 请求，启动并发的 Range 预检。
+	// git 智能 HTTP 请求（info/refs、git-upload-pack 等）跳过：
+	// git 协议响应是流式的（git-upload-pack 无 CL、不支持 Range），
+	// 预检无意义且浪费一次上游请求。
+	if !isRangeRequest && c.Request.Method == "GET" && !ghproxyservice.IsGitSmartHTTPRequest(u) {
 		preflightHeaders := c.Request.Header.Clone()
 		if userToken, ok := c.Get("userToken"); ok {
 			ut := userToken.(string)
@@ -98,8 +101,9 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 	defer resp.Body.Close()
 
 	// 等待并发预检结果（与实际下载请求并行）
-	// 断点续传模式跳过预检等待
-	if !isRangeRequest && c.Request.Method == "GET" {
+	// 断点续传模式跳过预检等待；git 智能 HTTP 请求不启动预检
+	// （见上方启动条件），此处必须同步排除，否则会永久阻塞在空通道。
+	if !isRangeRequest && c.Request.Method == "GET" && !ghproxyservice.IsGitSmartHTTPRequest(u) {
 		select {
 		case preflightSize = <-preflightCh:
 		case <-ctx.Done():
@@ -131,9 +135,13 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 	// 暂停时间过长导致 GitHub 掐断空闲连接时，生产者 Read 会报错。
 	// 将响应体包装为 ReconnectingReader，连接断开时自动以
 	// Range: bytes=<已读偏移>- 重新拉取，保证字节流连续，对浏览器透明。
+	// git 智能 HTTP 请求排除：其响应已走直连透传（见 writeResponse），
+	// 不经过水位线缓冲；且 git-upload-pack 为 POST 流式响应、不支持
+	// Range 重连（GET info/refs 虽支持 Range 但响应极小），无需包装。
 	if c.Request.Method == "GET" &&
 		(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusPartialContent) &&
-		!ghproxyservice.IsScriptURL(u) {
+		!ghproxyservice.IsScriptURL(u) &&
+		!ghproxyservice.IsGitSmartHTTPRequest(u) {
 		resp.Body = network.NewReconnectingReader(ctx, u, req.Header, resp)
 	}
 
@@ -143,10 +151,10 @@ func proxyDownloadRequest(c *gin.Context, u string, redirectCount int) {
 	// 根据资源类型分发处理
 	if ghproxyservice.IsScriptURL(u) {
 		// 脚本文件需要特殊处理（URL 替换）
-		handleScriptResponse(c, resp, realHost, redirectCount)
+		handleScriptResponse(c, resp, realHost, redirectCount, u)
 	} else {
 		// 普通文件直接转发
-		handleNormalResponse(c, resp, preflightSize, isRangeRequest, redirectCount)
+		handleNormalResponse(c, resp, preflightSize, isRangeRequest, redirectCount, u)
 	}
 }
 
@@ -190,7 +198,7 @@ func getDownloadLimiter(c *gin.Context) *ratelimit.Writer {
 //  3. 响应体始终被整体替换为处理后的内容，因此无条件删除原 CL/CE，
 //     由 writeResponse 按处理后的大小重新设置 CL（为 0 时走 chunked）
 //  4. 调用 writeResponse 发送到客户端
-func handleScriptResponse(c *gin.Context, resp *http.Response, realHost string, redirectCount int) {
+func handleScriptResponse(c *gin.Context, resp *http.Response, realHost string, redirectCount int, u string) {
 	// 检测是否为 gzip 压缩
 	isGzipCompressed := resp.Header.Get("Content-Encoding") == "gzip"
 
@@ -208,7 +216,7 @@ func handleScriptResponse(c *gin.Context, resp *http.Response, realHost string, 
 	resp.Header.Del("Content-Encoding")
 
 	// 写入响应到客户端
-	writeResponse(c, resp, processedBody, processedSize, redirectCount)
+	writeResponse(c, resp, processedBody, processedSize, redirectCount, u)
 }
 
 // handleNormalResponse 处理普通文件（非脚本）的响应。
@@ -232,7 +240,9 @@ func handleScriptResponse(c *gin.Context, resp *http.Response, realHost string, 
 // 参数:
 //   - preflightSize: Range 预检获得的文件总大小（仅首次下载有效）
 //   - isRangeRequest: 客户端是否携带了 Range 请求头（断点续传标志）
-func handleNormalResponse(c *gin.Context, resp *http.Response, preflightSize int64, isRangeRequest bool, redirectCount int) {
+//   - u: 本次响应对应的上游目标 URL（与 proxyDownloadRequest 中的判定同源，
+//     供 writeResponse 判断是否 git 智能 HTTP 直连透传）
+func handleNormalResponse(c *gin.Context, resp *http.Response, preflightSize int64, isRangeRequest bool, redirectCount int, u string) {
 	var knownSize int64
 
 	if isRangeRequest {
@@ -267,7 +277,7 @@ func handleNormalResponse(c *gin.Context, resp *http.Response, preflightSize int
 	}
 
 	// 写入响应到客户端
-	writeResponse(c, resp, resp.Body, knownSize, redirectCount)
+	writeResponse(c, resp, resp.Body, knownSize, redirectCount, u)
 }
 
 // writeResponse 响应处理的最后阶段，负责将数据发送给客户端。
@@ -282,7 +292,12 @@ func handleNormalResponse(c *gin.Context, resp *http.Response, preflightSize int
 //	200 + knownSize>0  → 设置 CL=knownSize（首次下载，进度条正常）
 //	206               → 不覆盖 CL（断点续传，使用 GitHub 返回的剩余大小）
 //	chunked            → 不设置 CL（降级方案，无进度但可下载）
-func writeResponse(c *gin.Context, resp *http.Response, body io.Reader, knownSize int64, redirectCount int) {
+//
+// 参数:
+//   - u: 本次响应对应的上游目标 URL。git 智能 HTTP 判定与
+//     proxyDownloadRequest 同源，保证"预检/重连跳过"与"直连透传"
+//     针对的是同一个 URL（重定向递归时 u 为最新目标）。
+func writeResponse(c *gin.Context, resp *http.Response, body io.Reader, knownSize int64, redirectCount int, u string) {
 	// 处理重定向响应
 	if location := resp.Header.Get("Location"); location != "" {
 		if _, needRedirect := network.HandleRedirectLocation(c, location, ghproxyservice.MatchURL); needRedirect {
@@ -319,6 +334,23 @@ func writeResponse(c *gin.Context, resp *http.Response, body io.Reader, knownSiz
 
 	// 立即写入状态码和响应头
 	c.Writer.WriteHeaderNow()
+
+	// git 智能 HTTP 数据流（git clone/push 的 info/refs、git-upload-pack 等）
+	// 直接透传，不走水位线缓冲：
+	//   - 缓冲模式让生产者全速预取上游数据，消费端（git 客户端 / 限速）慢时
+	//     上游 GitHub 连接长时间空闲，被 GitHub/中间网络的空闲超时掐断；
+	//   - git-upload-pack 为 POST 流式响应、不支持 Range 重连，一旦断连
+	//     clone 直接失败（fetch-pack: unexpected disconnect / early EOF）；
+	//   - 直连 pipe 让上游流量与客户端消费同步，上游连接始终有数据流动。
+	// 限速仍生效（getDownloadLimiter），仅改变传输节流方式。
+	// 判定基于本次响应的上游目标 URL u（与预检/重连跳过逻辑同源），
+	// 而非客户端 RequestURI——重定向后两者可能不一致，u 才是真实数据源。
+	if ghproxyservice.IsGitSmartHTTPRequest(u) {
+		rlw := getDownloadLimiter(c)
+		io.Copy(rlw, body)
+		rlw.Flush()
+		return
+	}
 
 	// 开始流式传输数据（带水位线反压）
 	streamToClientWithWaterline(c, body, getDownloadLimiter(c), resp.Body)
