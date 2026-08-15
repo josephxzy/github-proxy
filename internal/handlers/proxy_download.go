@@ -172,12 +172,24 @@ func getAuthFromContext(c *gin.Context) bool {
 	return false
 }
 
-func getDownloadLimiter(c *gin.Context) *ratelimit.Writer {
-	fw := &flushingWriter{
+// newFlushingWriter 创建带定时 Flush 的响应写包装器。
+// 每 flushThreshold（64KB）刷新一次，确保流式数据及时推送给客户端，
+// 避免 Gin 内部缓冲导致的延迟。
+func newFlushingWriter(c *gin.Context) *flushingWriter {
+	return &flushingWriter{
 		writer:        c.Writer,
 		flusher:       c.Writer.(http.Flusher),
 		flushInterval: flushThreshold,
 	}
+}
+
+// getDownloadLimiter 构建文件下载的限速写包装器。
+// 白名单 token 用户不限速（nil 限速器）；其余用户按
+// downloadBytesPerSec（单用户漏桶）+ globalBytesPerSec（全局令牌桶）限速。
+// 注意：git 智能 HTTP 流不经过本函数（writeResponse 中 git 分支直接使用
+// nil 限速器，git 一律不限速），本函数仅服务 release / archive / raw 等下载。
+func getDownloadLimiter(c *gin.Context) *ratelimit.Writer {
+	fw := newFlushingWriter(c)
 	authenticated := getAuthFromContext(c)
 
 	// 白名单用户不限速
@@ -347,11 +359,16 @@ func writeResponse(c *gin.Context, resp *http.Response, body io.Reader, knownSiz
 	//   - git-upload-pack 为 POST 流式响应、不支持 Range 重连，一旦断连
 	//     clone 直接失败（fetch-pack: unexpected disconnect / early EOF）；
 	//   - 直连 pipe 让上游流量与客户端消费同步，上游连接始终有数据流动。
-	// 限速仍生效（getDownloadLimiter），仅改变传输节流方式。
+	// git 流一律不限速（nil 限速器）：
+	//   - 限速会拉长传输时长、放大上游/中间网络断流的暴露窗口，而
+	//     git-upload-pack 无续传能力，断连即失败（用户实测：非白名单
+	//     clone 被限速后 early EOF / unexpected disconnect）；
+	//   - hubproxy 对 git 同样不做带宽限速。白名单豁免判断仅对 release /
+	//     archive / raw 等文件下载生效。
 	// 判定基于本次响应的上游目标 URL u（与预检/重连跳过逻辑同源），
 	// 而非客户端 RequestURI——重定向后两者可能不一致，u 才是真实数据源。
 	if ghproxyservice.IsGitSmartHTTPRequest(u) {
-		rlw := getDownloadLimiter(c)
+		rlw := ratelimit.NewWriter(newFlushingWriter(c), nil, nil)
 		io.Copy(rlw, body)
 		rlw.Flush()
 		return

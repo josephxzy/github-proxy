@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github-proxy/internal/config"
 	"github-proxy/internal/network"
@@ -277,6 +278,55 @@ func TestProxyDownloadArchiveNoPreflight(t *testing.T) {
 	}
 	if preflightSeen {
 		t.Error("归档请求不应触发 Range 预检（codeload 忽略 Range，预检无意义）")
+	}
+}
+
+// TestProxyDownloadNonWhitelistThrottled 非白名单文件下载保留限速：
+// git 流不限速（v1.3.8 起），但 release/raw 等文件下载仍按 downloadBytesPerSec
+// 限速（2KB @ 1000B/s ≈ 2s），白名单豁免判断继续生效。
+func TestProxyDownloadNonWhitelistThrottled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	t.Setenv("TOKEN_WHITELIST", "")
+	t.Setenv("DOWNLOAD_RATE", "1000")
+	t.Setenv("GLOBAL_RATE", "0")
+	if err := config.LoadConfig(); err != nil {
+		t.Fatalf("LoadConfig 失败: %v", err)
+	}
+	SetApplication(service.NewApplication(config.GetConfig()))
+
+	payload := strings.Repeat("x", 2*1024)
+	withMockGitHub(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Range") == "bytes=0-0" {
+			w.Header().Set("Content-Range", "bytes 0-0/"+strconv.Itoa(len(payload)))
+			w.Header().Set("Content-Length", "1")
+			w.WriteHeader(http.StatusPartialContent)
+			w.Write([]byte("h"))
+			return
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Length", strconv.Itoa(len(payload)))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(payload))
+	})
+
+	r := gin.New()
+	r.Use(TokenAuthMiddleware())
+	r.NoRoute(GitHubProxyHandler)
+
+	start := time.Now()
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/https://github.com/owner/repo/raw/main/a.bin", nil)
+	r.ServeHTTP(w, req)
+	elapsed := time.Since(start)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("状态码 = %d, want 200", w.Code)
+	}
+	if w.Body.String() != payload {
+		t.Errorf("body 不完整: len=%d, want %d", len(w.Body.String()), len(payload))
+	}
+	if elapsed < 1500*time.Millisecond {
+		t.Errorf("非白名单文件下载应保留限速（2KB@1000B/s≈2s），实际仅 %v", elapsed)
 	}
 }
 

@@ -14,10 +14,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// TestGitCloneWhitelistThrottleExempt 端到端验证 git clone 场景的白名单豁免：
+// TestGitCloneWhitelistThrottleExempt 端到端验证 git clone 场景的认证与限速语义：
 // 用户 URL 内嵌 token（https://ghp_xxx@host/...）时，git 发送
 // Authorization: Basic base64("ghp_xxx:")（token 作为用户名、空密码）。
-// 若白名单命中，下载必须完全不限速（即使配置了 DownloadBytesPerSec/GlobalBytesPerSec）。
+// git 智能 HTTP 流一律不限速（v1.3.8 起，即使配置了
+// DownloadBytesPerSec/GlobalBytesPerSec 且非白名单），白名单豁免判断
+// 仅作用于 release / archive / raw 等文件下载。
 func TestGitCloneWhitelistThrottleExempt(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -81,11 +83,11 @@ func TestGitCloneWhitelistThrottleExempt(t *testing.T) {
 		}
 	})
 
-	t.Run("对照组：非白名单 token 被限速（证明限速配置生效）", func(t *testing.T) {
+	t.Run("对照组：非白名单 token 的 git 流同样不限速（git 一律不限速）", func(t *testing.T) {
 		start := time.Now()
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest("POST", "/josephxzy/med-ice.git/git-upload-pack", strings.NewReader("pack"))
-		// 非白名单凭据：放行但限速
+		// 非白名单凭据：git 流不限速（限速仅作用于 release/archive/raw 下载）
 		req.Header.Set("Authorization", basicHeader("octocat", "ghp_otherToken999"))
 		r.ServeHTTP(w, req)
 
@@ -93,8 +95,8 @@ func TestGitCloneWhitelistThrottleExempt(t *testing.T) {
 		if w.Code != http.StatusOK {
 			t.Fatalf("状态码 = %d, want 200 (body=%s)", w.Code, w.Body.String())
 		}
-		if elapsed < 1500*time.Millisecond {
-			t.Errorf("非白名单 token 应被限速（2KB@1000B/s≈2s），实际仅 %v", elapsed)
+		if elapsed >= 1500*time.Millisecond {
+			t.Errorf("git 流不应被限速（git 一律不限速），2KB 耗时 %v", elapsed)
 		}
 	})
 }

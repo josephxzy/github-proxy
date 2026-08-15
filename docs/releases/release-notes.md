@@ -2,6 +2,14 @@
 
 完整的用户可见版本更新说明与发布历史。
 
+## v1.3.8
+
+- 变更：git clone / push（`info/refs`、`git-upload-pack` 等）一律不限速
+  - 背景：限速会拉长 git 传输时长、放大上游/中间网络断流的暴露窗口，而 `git-upload-pack` 不支持续传，断连即失败（`early EOF` / `fetch-pack: unexpected disconnect`）；且与 hubproxy 一致，git 场景不做带宽限速
+  - 效果：即使配置了 `downloadBytesPerSec` / `globalBytesPerSec`，git 流也按上游速度透传；白名单豁免判断不再作用于 git
+  - 保留：release / archive / raw 等文件下载仍按原有限速 + 白名单豁免逻辑
+- 测试：新增「git 不限速（即使配置限速）」「非白名单文件下载仍限速」回归用例
+
 ## v1.3.7
 
 - 修复：归档下载（master zip / archive / zipball）上游断连后下载失败

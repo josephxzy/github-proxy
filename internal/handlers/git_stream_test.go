@@ -126,10 +126,12 @@ func TestGitCloneStreamNoPreflightAndChunked(t *testing.T) {
 	})
 }
 
-// TestGitCloneStreamLimitedThrottledComplete 未认证 git 流在限速下数据仍完整：
-// 直连 pipe 保留了限速（getDownloadLimiter 不变），2KB @ 1000B/s 应耗时约 2 秒
-// 且字节完整——验证"修复不破坏限速"。
-func TestGitCloneStreamLimitedThrottledComplete(t *testing.T) {
+// TestGitCloneStreamUnlimitedThrottledConfig git 流一律不限速：
+// 即使配置了 DOWNLOAD_RATE（1000B/s），未认证 git 流也按上游速度透传
+// （<1.5s 完成 2KB，而非限速下的 ~2s），且字节完整。
+// 背景：限速会拉长传输时长、放大断流暴露窗口，而 git-upload-pack 不支持
+// 续传，断连即失败（early EOF）；hubproxy 对 git 同样不限速。
+func TestGitCloneStreamUnlimitedThrottledConfig(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	t.Setenv("TOKEN_WHITELIST", "")
 	t.Setenv("DOWNLOAD_RATE", "1000")
@@ -160,9 +162,9 @@ func TestGitCloneStreamLimitedThrottledComplete(t *testing.T) {
 		t.Fatalf("状态码 = %d, want 200 (body=%s)", w.Code, w.Body.String())
 	}
 	if w.Body.String() != payload {
-		t.Errorf("限速下 git 流数据不完整: len=%d, want %d", len(w.Body.String()), len(payload))
+		t.Errorf("git 流数据不完整: len=%d, want %d", len(w.Body.String()), len(payload))
 	}
-	if elapsed < 1500*time.Millisecond {
-		t.Errorf("未认证 git 流应被限速（2KB@1000B/s≈2s），实际仅 %v", elapsed)
+	if elapsed >= 1500*time.Millisecond {
+		t.Errorf("git 流不应被限速（git 一律不限速，2KB 应瞬间完成），实际 %v", elapsed)
 	}
 }
