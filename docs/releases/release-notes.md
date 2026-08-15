@@ -2,6 +2,14 @@
 
 完整的用户可见版本更新说明与发布历史。
 
+## v1.3.7
+
+- 修复：归档下载（master zip / archive / zipball）上游断连后下载失败
+  - 根因：归档最终由 codeload.github.com 服务，而 codeload 忽略 Range 请求头（一律返回 200 全量）；上游断连时自动重连要求 206 才能按偏移续传，codeload 给不了，只能放弃 → 下载失败
+  - 修复：归档请求启用 skip-resume——断连后整包重拉、跳过已发字节，输出字节流保持连续，下载不中断（归档按 commit ref 不可变，跳过安全）
+  - 附带：归档请求跳过无意义的 Range 预检（codeload 忽略 Range，预检拿不到 Content-Range）
+- 说明：归档/ git 下载的慢速（上游 codeload / github.com 拥塞）属网络路径问题，代理无法加速；本版本保证归档下载断流后自动续传直至完成
+
 ## v1.3.6
 
 - 修复：git clone / push 断流（`fetch-pack: unexpected disconnect` / `early EOF`）
